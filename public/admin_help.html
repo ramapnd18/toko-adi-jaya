@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bantuan - Admin Adi Jaya Store</title>
+    <link href="style.css" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .sidebar-bg {
+        background-color: #0f4c5c;
+      }
+      .text-teal-custom {
+        color: #0f4c5c;
+      }
+      .bg-teal-custom {
+        background-color: #1a6f80;
+      }
+    </style>
+  </head>
+  <body class="bg-white flex h-screen font-sans overflow-hidden">
+    <aside
+      class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 transition-all duration-300"
+    >
+      <div class="p-6 flex items-center gap-3">
+        <i class="fas fa-user-shield text-2xl"></i>
+        <h2 class="text-xl font-bold">Administrasi</h2>
+      </div>
+
+      <nav class="flex-1 px-4 space-y-2 overflow-y-auto pb-4">
+        <a
+          href="admin_dashboard.html"
+          class="flex items-center p-3 hover:bg-white/10 rounded-lg transition"
+        >
+          <i class="fas fa-home w-8 text-lg"></i>
+          <span class="font-medium">Dashboard</span>
+        </a>
+
+        <a
+          href="admin_users.html"
+          class="flex items-center p-3 hover:bg-white/10 rounded-lg transition"
+        >
+          <i class="fas fa-users w-8 text-lg"></i>
+          <span class="font-medium">Data Akun</span>
+        </a>
+
+        <a
+          href="admin_help.html"
+          class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg relative"
+        >
+          <i class="fas fa-exclamation-circle w-8 text-lg"></i>
+          <span class="font-bold">Help</span>
+        </a>
+
+        <button
+          onclick="showLogoutModal()"
+          class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200 hover:text-red-100"
+        >
+          <i class="fas fa-sign-out-alt w-8 text-lg"></i>
+          <span class="font-medium">Logout</span>
+        </button>
+      </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-12 overflow-y-auto h-full text-teal-900">
+      <h1 class="text-3xl font-bold text-teal-custom mb-10">
+        Petunjuk Penggunaan Aplikasi
+      </h1>
+
+      <div class="space-y-6 text-lg">
+        <div class="items-start gap-4">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-user-shield text-2xl"></i>
+            <h2 class="text-xl font-bold">Administrasi</h2>
+          </div>
+          <p>Sebuah menu yang menuju ke akun admin itu sendiri</p>
+        </div>
+
+        <div class="items-start gap-4">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-home text-2xl"></i>
+            <span class="font-bold">Dashboard</span>
+          </div>
+          <p>
+            Sebuah menu yang menuju ke Dashboard yang berisi informasi tentang
+            keuangan
+          </p>
+        </div>
+
+        <div class="items-start gap-4">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-users text-2xl"></i>
+            <span class="font-bold">Data Akun</span>
+          </div>
+          <p>Sebuah menu yang menuju ke manajemen akun</p>
+        </div>
+
+        <div class="items-start gap-4">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-exclamation-circle text-2xl"></i>
+            <span class="font-bold">Help</span>
+          </div>
+          <p>
+            Sebuah menu yang menuju ke petunjuk pemakaian Aplikasi dan pusat
+            bantuan
+          </p>
+        </div>
+
+        <div class="items-start gap-4">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-sign-out-alt text-2xl"></i>
+            <span class="font-bold">Logout</span>
+          </div>
+          <p>
+            Sebuah menu yang menuju ke verifikasi apakah ingin keluar dari
+            aplikasi
+          </p>
+        </div>
+
+        <div class="items-center gap-4 mt-8">
+          <span
+            class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700"
+            ><i class="fas fa-file-excel mr-2"></i> Export Excel</span
+          >
+          <p>Sebuah tombol untuk mengexport sebuah data kedalam bentuk Excel</p>
+        </div>
+
+        <div class="items-center gap-4 mt-8">
+          <span
+            onclick="exportPDF('tablePemasukan', 'Laporan_Pemasukan')"
+            class="bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700"
+          >
+            <i class="fas fa-file-pdf mr-2"></i> Export PDF
+          </span>
+          <p>Sebuah tombol untuk mengexport sebuah data kedalam bentuk PDF</p>
+        </div>
+        
+        <div class="items-center gap-4 mt-8">
+          <span onclick="openAddPengeluaran()" class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700"><i class="fas fa-edit mr-2"></i> Add Needs</span>
+          <p>Sebuah tombol untuk menambah sebuah data kedalam tabel</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <span
+            class="bg-teal-custom text-white font-bold py-2 px-6 rounded shadow"
+          >
+            Tambah Stok
+          </span>
+          <p>Sebuah tombol untuk penambahan suatu stok prodak</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <span
+            class="bg-teal-custom text-white font-bold py-2 px-6 rounded shadow"
+          >
+            Update
+          </span>
+          <p>Sebuah tombol untuk ngengupdate perbaharuan</p>
+        </div>
+      </div>
+
+      <div class="mt-20">
+        <h2 class="text-2xl font-bold text-teal-custom mb-4">Pusat Bantuan</h2>
+        <div
+          class="bg-gray-200 p-6 rounded-lg text-teal-800 font-bold space-y-2 text-lg"
+        >
+          <p>Email : 247006111007student.unsil.ac.id</p>
+          <p>Contact Persona : 082319948569</p>
+          <p>WhatsApp : 082319948569</p>
+        </div>
+      </div>
+    </main>
+
+    <div
+      id="logoutModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+    >
+      <div class="bg-white rounded-lg p-8 w-96 text-center shadow-2xl relative">
+        <h3 class="text-2xl font-bold text-teal-700 mb-6">Logout</h3>
+        <div class="bg-gray-200 py-4 px-2 rounded mb-6">
+          <p class="text-teal-800 font-bold text-lg">
+            Apakah anda ingin keluar dari website?
+          </p>
+        </div>
+        <div class="flex justify-center gap-4">
+          <button
+            onclick="doLogout()"
+            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition"
+          >
+            Ya
+          </button>
+          <button
+            onclick="closeLogoutModal()"
+            class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-full shadow-lg transition"
+          >
+            Tidak
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      if (!localStorage.getItem("user_session"))
+        window.location.href = "login.html";
+
+      function showLogoutModal() {
+        document.getElementById("logoutModal").classList.remove("hidden");
+      }
+      function closeLogoutModal() {
+        document.getElementById("logoutModal").classList.add("hidden");
+      }
+
+      function doLogout() {
+        localStorage.removeItem("user_session");
+        window.location.href = "login.html";
+      }
+    </script>
+  </body>
+</html>

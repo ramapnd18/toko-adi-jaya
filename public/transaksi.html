@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaksi - Adi Jaya Store</title>
+    <link href="style.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        .sidebar-bg { background-color: #0f4c5c; }
+        .card-teal { background-color: #157f8f; }
+    </style>
+</head>
+<body class="bg-gray-50 flex h-screen overflow-hidden font-sans">
+
+    <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 rounded-e-3xl">
+        <div class="p-6"></div>
+        <nav class="flex-1 px-4 space-y-4">
+            <a href="akun.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-user-circle w-8 text-xl"></i><span class="font-semibold">Profil</span>
+            </a>
+            <a href="transaksi.html" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
+                <i class="fas fa-exchange-alt w-8 text-xl"></i><span class="font-bold">Transaksi</span>
+            </a>
+            <a href="help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-exclamation-circle w-8 text-xl"></i><span class="font-semibold">Help</span>
+            </a>
+            <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200">
+                <i class="fas fa-sign-out-alt w-8 text-xl"></i><span class="font-semibold">Logout</span>
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-8 overflow-y-auto h-full">
+        <h1 class="text-3xl font-bold text-teal-800 mb-6">Transaksi Kasir</h1>
+
+        <div class="flex flex-col lg:flex-row gap-8 mb-8">
+            <div class="flex-1 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-medium text-gray-700 mb-1">Pilih Barang :</label>
+                        <select id="inputBarang" class="w-full border border-teal-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white">
+                            <option value="">-- Pilih Barang --</option>
+                        </select>
+                        <p id="stokInfo" class="text-xs text-gray-500 mt-1">Stok Tersedia: -</p>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block font-medium text-gray-700 mb-1">Jumlah :</label>
+                            <input type="number" id="inputQty" min="1" value="1" class="w-full border border-teal-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-300">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="addToCart()" class="bg-teal-700 hover:bg-teal-800 text-white font-bold py-2 px-6 rounded shadow transition h-10 w-full">
+                                <i class="fas fa-plus mr-2"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full lg:w-96 space-y-4">
+                <div class="card-teal text-white p-6 rounded-2xl shadow-lg flex justify-between items-center">
+                    <div>
+                        <h2 id="displayTotal" class="text-4xl font-bold">IDR 0</h2>
+                        <p class="text-sm opacity-90 mt-1">Total Belanja</p>
+                    </div>
+                    <i class="fas fa-shopping-cart text-5xl opacity-50"></i>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Pembayaran</h3>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600">Uang Tunai (Cash)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-gray-500">Rp</span>
+                                <input type="number" id="inputBayar" class="w-full pl-10 border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-lg text-gray-800" placeholder="0">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600">Kembalian</label>
+                            <div class="w-full bg-gray-100 border border-gray-200 rounded px-3 py-2 text-right">
+                                <span id="displayKembalian" class="font-bold text-xl text-teal-700">Rp 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white border rounded-lg overflow-hidden shadow-sm mb-6">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-100 border-b-2 border-gray-200 text-gray-600 text-sm uppercase">
+                    <tr>
+                        <th class="p-4 font-semibold">Nama Produk</th>
+                        <th class="p-4 font-semibold text-center">Qty</th>
+                        <th class="p-4 font-semibold text-right">Harga</th>
+                        <th class="p-4 font-semibold text-right">Subtotal</th>
+                        <th class="p-4 font-semibold text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="cartTableBody" class="text-gray-700">
+                    <tr><td colspan="5" class="p-4 text-center text-gray-400">Keranjang kosong</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-end">
+            <button onclick="processCheckout()" id="btnCheckout" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition opacity-50 cursor-not-allowed flex items-center" disabled>
+                <i class="fas fa-print mr-2"></i> Bayar & Cetak Struk
+            </button>
+        </div>
+
+    </main>
+
+    <div id="logoutModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-8 w-96 text-center shadow-2xl relative">
+            <h3 class="text-2xl font-bold text-teal-700 mb-6">Logout</h3>
+            <div class="bg-gray-200 py-4 px-2 rounded mb-6">
+                <p class="text-teal-800 font-bold text-lg">Apakah anda ingin keluar dari website?</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="doLogout()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Ya
+                </button>
+                <button onclick="closeLogoutModal()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Tidak
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Cek Sesi Login
+        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
+        
+        let productList = [];
+        let cart = [];
+        let currentTotal = 0; // Variabel global untuk menyimpan total belanja
+
+        // --- 1. Load Data ---
+        async function loadProducts() {
+            try {
+                const res = await fetch('/api/barang');
+                productList = await res.json();
+                const select = document.getElementById('inputBarang');
+                productList.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.kode_barang;
+                    option.text = `${item.nama_barang} (Rp ${item.harga_jual.toLocaleString()})`;
+                    select.appendChild(option);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        // --- 2. Cek Stok saat Pilih Barang ---
+        document.getElementById('inputBarang').addEventListener('change', function() {
+            const item = productList.find(p => p.kode_barang == this.value);
+            const stokInfo = document.getElementById('stokInfo');
+            if (item) {
+                stokInfo.innerText = `Stok Tersedia: ${item.stok}`;
+                stokInfo.className = item.stok === 0 ? "text-xs text-red-600 font-bold mt-1" : "text-xs text-gray-500 mt-1";
+            } else {
+                stokInfo.innerText = "Stok Tersedia: -";
+            }
+        });
+
+        // --- 3. Hitung Kembalian Otomatis ---
+        const inputBayar = document.getElementById('inputBayar');
+        inputBayar.addEventListener('input', function() {
+            const bayar = parseFloat(this.value) || 0;
+            const kembalian = bayar - currentTotal;
+            
+            const displayKembalian = document.getElementById('displayKembalian');
+            
+            if (kembalian >= 0) {
+                displayKembalian.innerText = `Rp ${kembalian.toLocaleString()}`;
+                displayKembalian.classList.remove('text-red-600');
+                displayKembalian.classList.add('text-teal-700');
+            } else {
+                displayKembalian.innerText = `Kurang: Rp ${Math.abs(kembalian).toLocaleString()}`;
+                displayKembalian.classList.remove('text-teal-700');
+                displayKembalian.classList.add('text-red-600');
+            }
+        });
+
+        // --- 4. Tambah ke Keranjang ---
+        function addToCart() {
+            const kode = document.getElementById('inputBarang').value;
+            const qty = parseInt(document.getElementById('inputQty').value);
+            const itemDB = productList.find(p => p.kode_barang == kode);
+
+            if (!kode || qty <= 0) return alert("Data tidak valid!");
+            if (qty > itemDB.stok) return alert(`Stok kurang! Sisa: ${itemDB.stok}`);
+
+            const subtotal = itemDB.harga_jual * qty;
+            
+            // Cek jika barang sudah ada di cart, update qty saja
+            const existingItem = cart.find(i => i.kode === kode);
+            if (existingItem) {
+                existingItem.qty += qty;
+                existingItem.subtotal += subtotal;
+            } else {
+                cart.push({
+                    kode: itemDB.kode_barang,
+                    nama: itemDB.nama_barang,
+                    harga: itemDB.harga_jual,
+                    qty: qty,
+                    subtotal: subtotal
+                });
+            }
+
+            itemDB.stok -= qty; // Kurangi stok virtual
+            document.getElementById('stokInfo').innerText = `Stok Tersedia: ${itemDB.stok} (Sisa)`;
+            renderCart();
+        }
+
+        // --- 5. Render Keranjang ---
+        function renderCart() {
+            const tbody = document.getElementById('cartTableBody');
+            tbody.innerHTML = '';
+            currentTotal = 0;
+
+            cart.forEach((item, index) => {
+                currentTotal += item.subtotal;
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-4 font-medium">${item.nama}</td>
+                        <td class="p-4 text-center">${item.qty}</td>
+                        <td class="p-4 text-right">Rp ${item.harga.toLocaleString()}</td>
+                        <td class="p-4 text-right font-bold">Rp ${item.subtotal.toLocaleString()}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="removeItem(${index})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('displayTotal').innerText = `IDR ${currentTotal.toLocaleString()}`;
+            
+            // Trigger ulang hitung kembalian jika total berubah
+            inputBayar.dispatchEvent(new Event('input'));
+
+            const btnCheckout = document.getElementById('btnCheckout');
+            if (cart.length > 0) {
+                btnCheckout.disabled = false;
+                btnCheckout.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnCheckout.disabled = true;
+                btnCheckout.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function removeItem(index) {
+            const item = cart[index];
+            const product = productList.find(p => p.kode_barang == item.kode);
+            product.stok += item.qty; // Balikin stok virtual
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        // --- 6. Proses Transaksi ---
+        async function processCheckout() {
+            const uangBayar = parseFloat(inputBayar.value) || 0;
+
+            // VALIDASI PEMBAYARAN
+            if (uangBayar < currentTotal) {
+                return alert(`Uang Pembayaran Kurang! \nTotal Belanja: Rp ${currentTotal.toLocaleString()}\nUang Masuk: Rp ${uangBayar.toLocaleString()}`);
+            }
+
+            if (!confirm("Proses transaksi ini?")) return;
+
+            const session = JSON.parse(localStorage.getItem('user_session'));
+            
+            try {
+                const res = await fetch('/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_user: session.id,
+                        total_bayar: currentTotal,
+                        items: cart
+                    })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    // Hitung Kembalian untuk dicetak
+                    const kembalian = uangBayar - currentTotal;
+                    
+                    // Cetak Struk dengan Data Pembayaran
+                    printReceipt(result.id_transaksi, session.nama, currentTotal, uangBayar, kembalian);
+                    
+                    alert("Transaksi Berhasil!");
+                    location.reload();
+                } else {
+                    alert("Gagal: " + result.message);
+                }
+            } catch (err) { alert("Error server"); }
+        }
+
+        // --- 7. Cetak Struk PDF (Update dengan Bayar & Kembali) ---
+        function printReceipt(idTrx, kasir, total, bayar, kembali) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ width: 80, height: 120 + (cart.length * 5) });
+
+            doc.setFontSize(10);
+            doc.text("ADI JAYA STORE", 40, 10, { align: "center" });
+            doc.setFontSize(8);
+            doc.text("Jl. Siliwangi No. 123", 40, 15, { align: "center" });
+            doc.text("-".repeat(45), 40, 20, { align: "center" });
+
+            doc.text(`No: ${idTrx}`, 5, 25);
+            doc.text(`Kasir: ${kasir}`, 5, 30);
+            
+            let y = 40;
+            cart.forEach(item => {
+                doc.text(`${item.nama.substring(0, 15)}`, 5, y);
+                doc.text(`x${item.qty}`, 40, y);
+                doc.text(item.subtotal.toLocaleString(), 75, y, { align: "right" });
+                y += 5;
+            });
+
+            doc.text("-".repeat(45), 40, y, { align: "center" });
+            y += 5;
+
+            doc.setFontSize(9);
+            // Info Pembayaran
+            doc.text("TOTAL:", 5, y+5);
+            doc.text(total.toLocaleString(), 75, y+5, { align: "right" });
+
+            doc.text("BAYAR:", 5, y+10);
+            doc.text(bayar.toLocaleString(), 75, y+10, { align: "right" });
+
+            doc.text("KEMBALI:", 5, y+15);
+            doc.text(kembali.toLocaleString(), 75, y+15, { align: "right" });
+
+            doc.setFontSize(8);
+            doc.text("Terima Kasih", 40, y+25, { align: "center" });
+
+            doc.save(`Struk-${idTrx}.pdf`);
+        }
+
+        // --- 8. Logout Functions ---
+        function showLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+        function doLogout() { localStorage.removeItem('user_session'); window.location.href = 'login.html'; }
+        loadProducts();
+    </script>
+</body>
+</html>

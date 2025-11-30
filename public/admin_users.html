@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Akun - Admin</title>
+    <link href="style.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .sidebar-bg { background-color: #0f4c5c; }
+        /* Style agar gambar di modal bulat rapi */
+        .preview-img { width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #0f4c5c; margin: 0 auto 20px auto; display: block; }
+    </style>
+</head>
+<body class="bg-gray-50 flex h-screen font-sans">
+
+    <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 transition-all duration-300">
+        <div class="p-6 flex items-center gap-3">
+            <i class="fas fa-user-shield text-2xl"></i>
+            <h2 class="text-xl font-bold">Administrasi</h2>
+        </div>
+        
+        <nav class="flex-1 px-4 space-y-2 overflow-y-auto pb-4">
+            <a href="admin_dashboard.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-home w-8 text-lg"></i> <span class="font-medium">Dashboard</span>
+            </a>
+
+            <a href="admin_users.html" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg relative">
+                <i class="fas fa-users w-8 text-lg"></i> <span class="font-bold">Data Akun</span>
+            </a>
+
+            <a href="admin_help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-exclamation-circle w-8 text-lg"></i> <span class="font-bold">Help</span>
+            </a>
+
+            <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200 hover:text-red-100">
+                <i class="fas fa-sign-out-alt w-8 text-lg"></i> <span class="font-medium">Logout</span>
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-8 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-teal-800">Manajemen Akun</h1>
+            <button onclick="openModal('add')" class="bg-teal-700 hover:bg-teal-800 text-white px-6 py-2 rounded-lg font-bold shadow transition">
+                <i class="fas fa-user-plus mr-2"></i> Tambah Akun
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="userContainer">
+            </div>
+    </main>
+
+    <div id="modalUser" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl w-96 shadow-2xl relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-red-500"><i class="fas fa-times"></i></button>
+            
+            <h2 id="modalTitle" class="text-xl font-bold text-teal-800 mb-4 text-center">Form Pengguna</h2>
+            
+            <img id="previewFoto" src="https://via.placeholder.com/100" class="preview-img hidden">
+
+            <form id="formUser" class="space-y-4">
+                <input type="hidden" id="userId"> 
+                <div>
+                    <label class="block text-sm text-gray-600">Upload Foto</label>
+                    <input type="file" id="fotoInput" accept="image/*" class="w-full border p-2 rounded text-sm" onchange="previewImage(this)">
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-600">Nama Lengkap</label>
+                    <input type="text" id="nama" placeholder="Nama Lengkap" class="w-full border p-2 rounded" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-600">Username</label>
+                    <input type="text" id="username" placeholder="Username" class="w-full border p-2 rounded" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-600">Password</label>
+                    <input type="text" id="password" placeholder="Password" class="w-full border p-2 rounded" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-600">Role</label>
+                    <select id="role" class="w-full border p-2 rounded">
+                        <option value="kasir">Kasir</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6" id="modalActions">
+                    <button type="button" onclick="closeModal()" class="text-gray-500 px-4 py-2">Tutup</button>
+                    <button type="submit" class="bg-teal-700 hover:bg-teal-800 text-white px-6 py-2 rounded font-bold transition">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-8 w-96 text-center shadow-2xl relative">
+            <h3 class="text-2xl font-bold text-teal-700 mb-6">Logout</h3>
+            <div class="bg-gray-200 py-4 px-2 rounded mb-6">
+                <p class="text-teal-800 font-bold text-lg">Apakah anda ingin keluar dari website?</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="doLogout()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Ya
+                </button>
+                <button onclick="closeLogoutModal()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Tidak
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cek Login
+        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
+
+        let currentMode = 'add'; // add | edit | detail
+
+        // 1. LOAD DATA USER
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const users = await res.json();
+                const container = document.getElementById('userContainer');
+                container.innerHTML = '';
+
+                users.forEach(user => {
+                    // Gunakan foto default jika kosong
+                    const imgUrl = user.foto || 'https://via.placeholder.com/150';
+
+                    container.innerHTML += `
+                        <div class="bg-white p-6 rounded-xl shadow border border-gray-100 flex items-center gap-4 hover:shadow-md transition">
+                            <img src="${imgUrl}" class="w-16 h-16 rounded-full border-2 border-teal-500 object-cover">
+                            <div class="flex-1 overflow-hidden">
+                                <h3 class="font-bold text-lg text-gray-800 truncate">${user.nama_lengkap}</h3>
+                                <span class="text-xs font-bold uppercase bg-gray-200 text-gray-600 px-2 py-0.5 rounded">${user.role}</span>
+                                <p class="text-xs text-gray-400 mt-1">@${user.username}</p>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="fetchUserAndOpen('${user.id_pengguna}', 'detail')" class="text-gray-400 hover:text-teal-600" title="Detail">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="fetchUserAndOpen('${user.id_pengguna}', 'edit')" class="text-blue-300 hover:text-blue-600" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="hapusUser(${user.id_pengguna})" class="text-red-300 hover:text-red-600" title="Hapus">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Gagal memuat user:", err);
+            }
+        }
+
+        // 2. FUNGSI MEMBUKA MODAL
+        async function fetchUserAndOpen(id, mode) {
+            try {
+                const res = await fetch(`/api/users/${id}`);
+                const user = await res.json();
+                openModal(mode, user);
+            } catch (err) {
+                console.error("Gagal ambil detail user:", err);
+            }
+        }
+
+        function openModal(mode, data = null) {
+            currentMode = mode;
+            const form = document.getElementById('formUser');
+            const title = document.getElementById('modalTitle');
+            const btnSimpan = document.querySelector('#modalActions button[type="submit"]');
+            const imgPreview = document.getElementById('previewFoto');
+
+            // Reset Form
+            form.reset();
+            document.getElementById('userId').value = '';
+            
+            // Enable semua input dulu
+            Array.from(form.elements).forEach(el => el.disabled = false);
+
+            if (mode === 'add') {
+                title.innerText = "Tambah Akun Baru";
+                btnSimpan.classList.remove('hidden');
+                btnSimpan.innerText = "Simpan";
+                imgPreview.src = "https://via.placeholder.com/100?text=Foto";
+                imgPreview.classList.remove('hidden');
+            
+            } else if (mode === 'edit') {
+                title.innerText = "Edit Akun";
+                fillForm(data);
+                btnSimpan.classList.remove('hidden');
+                btnSimpan.innerText = "Update";
+                
+            } else if (mode === 'detail') {
+                title.innerText = "Detail Akun";
+                fillForm(data);
+                
+                // 2. PERBAIKAN: Hanya disable INPUT dan SELECT, jangan tombol
+                Array.from(form.elements).forEach(el => {
+                    if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                        el.disabled = true;
+                    }
+                });
+                
+                // Sembunyikan tombol simpan, tapi biarkan tombol Tutup aktif
+                btnSimpan.classList.add('hidden');
+            }
+
+            document.getElementById('modalUser').classList.remove('hidden');
+        }
+
+        // --- BAGIAN YANG DIPERBAIKI (fillForm) ---
+        function fillForm(data) {
+            document.getElementById('userId').value = data.id_pengguna;
+            document.getElementById('nama').value = data.nama_lengkap;
+            document.getElementById('username').value = data.username;
+            document.getElementById('password').value = data.password;
+            document.getElementById('role').value = data.role;
+            
+            // PERBAIKAN: Jangan set value ke input file (Error penyebab crash)
+            // document.getElementById('foto').value = data.foto; <--- INI HAPUS
+            
+            // Cukup set gambar preview saja
+            const imgUrl = data.foto || 'https://via.placeholder.com/100';
+            document.getElementById('previewFoto').src = imgUrl;
+            document.getElementById('previewFoto').classList.remove('hidden');
+        }
+
+        // 3. PREVIEW GAMBAR (Saat pilih file)
+        function previewImage(input) {
+            const preview = document.getElementById('previewFoto');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 4. FUNGSI SIMPAN (SUBMIT) DENGAN FORMDATA
+        document.getElementById('formUser').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('userId').value;
+            const fileInput = document.getElementById('fotoInput'); // Pastikan ID ini ada di HTML
+
+            // Gunakan FormData untuk kirim file + text
+            const formData = new FormData();
+            formData.append('username', document.getElementById('username').value);
+            formData.append('password', document.getElementById('password').value);
+            formData.append('nama', document.getElementById('nama').value);
+            formData.append('role', document.getElementById('role').value);
+            
+            // Jika ada file dipilih, masukkan
+            if (fileInput && fileInput.files[0]) {
+                formData.append('foto', fileInput.files[0]);
+            }
+
+            let url = '/api/users';
+            let method = 'POST';
+
+            if (currentMode === 'edit') {
+                url = `/api/users/${id}`;
+                method = 'PUT';
+            }
+
+            try {
+                // Fetch tanpa header Content-Type (Browser otomatis set multipart/form-data)
+                const res = await fetch(url, {
+                    method: method,
+                    body: formData 
+                });
+
+                const result = await res.json();
+                if(result.success) {
+                    closeModal();
+                    loadUsers();
+                    alert('Data berhasil disimpan!');
+                } else {
+                    alert('Gagal menyimpan data.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan server');
+            }
+        });
+
+        // 5. HAPUS USER
+        async function hapusUser(id) {
+            if(confirm('Hapus pengguna ini selamanya?')) {
+                await fetch(`/api/users/${id}`, { method: 'DELETE' });
+                loadUsers();
+            }
+        }
+
+        function closeModal() { document.getElementById('modalUser').classList.add('hidden'); }
+        function logout() { localStorage.removeItem('user_session'); window.location.href = 'login.html'; }
+
+        // Init Load
+        loadUsers();
+
+        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
+
+        function showLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+
+        function doLogout() { localStorage.removeItem('user_session'); window.location.href = 'login.html'; }
+    
+    </script>
+</body>
+</html>

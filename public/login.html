@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Adi Jaya Store</title>
+    <link href="style.css" rel="stylesheet"> <style>
+        /* Warna Custom Sesuai Mockup */
+        .bg-teal-custom { background-color: #1a6f80; }
+        .bg-dark-teal { background-color: #0e4c5e; }
+    </style>
+</head>
+<body class="bg-dark-teal flex items-center justify-center min-h-screen font-sans">
+
+    <div class="text-center w-full max-w-md px-4">
+        <h1 class="text-3xl font-bold text-white mb-8 tracking-wide">ADI JAYA STORE</h1>
+
+        <div class="bg-teal-custom rounded-[2rem] p-8 shadow-2xl relative">
+            
+    
+
+            <form id="loginForm" class="space-y-6">
+                <div class="text-left">
+                    <label class="text-white text-xs font-bold ml-4 uppercase tracking-wider">USERNAME</label>
+                    <input type="text" id="username" placeholder="Username . . ." 
+                        class="w-full mt-1 px-6 py-3 rounded-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300" required>
+                </div>
+
+                <div class="text-left">
+                    <label class="text-white text-xs font-bold ml-4 uppercase tracking-wider">PASSWORD</label>
+                    <input type="password" id="password" placeholder="Password . . ." 
+                        class="w-full mt-1 px-6 py-3 rounded-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300" required>
+                </div>
+
+                <button type="submit" 
+                    class="w-2/3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-full shadow-lg transition duration-200 mt-4 mx-auto block">
+                    LOGIN
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Cek jika sudah login, langsung lempar ke transaksi
+        if (localStorage.getItem('user_session')) {
+            window.location.href = 'transaksi.html';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    localStorage.setItem('user_session', JSON.stringify(result.data));
+                    
+                    // CEK ROLE UNTUK REDIRECT
+                    if (result.data.role === 'admin') {
+                        window.location.href = 'admin_dashboard.html';
+                    } else {
+                        window.location.href = 'transaksi.html';
+                    }
+                } else {
+                    alert('Login gagal: ' + result.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan server');
+            }
+        });
+    </script>
+</body>
+</html>
