@@ -13,22 +13,48 @@
     </style>
 </head>
 <body class="bg-white flex h-screen font-sans">
+    <script>
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
 
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'kasir') {
+                alert("Akses Ditolak! Halaman ini khusus Kasir.");
+                window.location.href = 'admin_dashboard.html';
+            }
+        }
+    </script>
     <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 rounded-e-3xl">
         <div class="p-6"></div>
+        
         <nav class="flex-1 px-4 space-y-4">
-            <a href="akun.html" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
+            <a href="akun.html" class="flex itemsflex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
                 <i class="fas fa-user-circle w-8 text-xl"></i>
                 <span class="font-bold">Profil</span>
             </a>
+            
             <a href="transaksi.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
                 <i class="fas fa-exchange-alt w-8 text-xl"></i>
                 <span class="font-semibold">Transaksi</span>
             </a>
+
             <a href="help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
                 <i class="fas fa-exclamation-circle w-8 text-xl"></i>
                 <span class="font-semibold">Help</span>
             </a>
+
             <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200">
                 <i class="fas fa-sign-out-alt w-8 text-xl"></i>
                 <span class="font-semibold">Logout</span>
@@ -96,33 +122,30 @@
         </div>
     </div>
     <script>
-        // 1. Cek Sesi Login
-        const sessionData = localStorage.getItem('user_session');
-        if (!sessionData) {
+        // 1. Ambil Data Sesi
+        
+        // Pengecekan keamanan ganda (jika script di atas body gagal)
+        if (!sessionRaw) {
             window.location.href = 'login.html';
         }
 
-        const user = JSON.parse(sessionData);
+        const session = JSON.parse(sessionRaw);
+        
+        // PERBAIKAN: Langsung gunakan objek session sebagai user
+        const user = session; 
 
-        // 2. Isi Data ke HTML (DOM Manipulation)
-        // Foto
+        // 2. Isi Data ke HTML
+        // Gunakan placeholder jika foto kosong/null
         document.getElementById('profile-img').src = user.foto || 'https://via.placeholder.com/150';
         
-        // Role (Judul di atas kartu)
-        document.getElementById('profile-role').innerText = user.role;
-        document.getElementById('profile-nama').innerText = user.nama;
+        // Pastikan nama properti sesuai dengan respon API Login (nama_lengkap atau nama)
+        document.getElementById('profile-nama').innerText = user.nama || user.nama_lengkap || 'User'; 
         
-        // Username
         document.getElementById('profile-username').innerText = user.username;
-        
-        // Password
-        // Opsi A: Tampilkan bintang fix (lebih aman & rapi sesuai mockup)
-        document.getElementById('profile-password').innerText = '********'; 
-        
-        // Opsi B: Jika ingin jumlah bintang sesuai panjang password asli, pakai baris ini:
-        // document.getElementById('profile-password').innerText = '*'.repeat(user.password.length);
+        document.getElementById('profile-role').innerText = user.role;
+        document.getElementById('profile-password').innerText = '********';
 
-        // Fungsi Logout
+        // 3. Fungsi Logout
         function showLogoutModal() {
             document.getElementById('logoutModal').classList.remove('hidden');
         }

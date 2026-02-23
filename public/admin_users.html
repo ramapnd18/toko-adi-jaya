@@ -12,15 +12,40 @@
     </style>
 </head>
 <body class="bg-gray-50 flex h-screen font-sans">
+    <script>
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
 
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'admin') {
+                alert("Akses Ditolak! Anda bukan Admin.");
+                window.location.href = 'transaksi.html';
+            }
+        }
+    </script>
+    
     <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 transition-all duration-300">
-        <div class="p-6 flex items-center gap-3">
-            <i class="fas fa-user-shield text-2xl"></i>
-            <h2 class="text-xl font-bold">Administrasi</h2>
+        <div class="p-3 flex items-center gap-3">
+            <a href="admin_profil.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-user-shield text-2xl pe-3"></i>
+                <h2 class="text-xl font-bold">Administrasi</h2>
+            </a>
         </div>
         
         <nav class="flex-1 px-4 space-y-2 overflow-y-auto pb-4">
-            <a href="admin_dashboard.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+            <a href="index.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
                 <i class="fas fa-home w-8 text-lg"></i> <span class="font-medium">Dashboard</span>
             </a>
 
@@ -41,6 +66,12 @@
     <main class="flex-1 ml-64 p-8 overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-teal-800">Manajemen Akun</h1>
+
+            <div class="flex items-center bg-white border rounded-lg px-3 py-2 shadow-sm w-1/3">
+                <i class="fas fa-search text-gray-400 mr-2"></i>
+                <input type="text" id="searchInput" placeholder="Cari nama atau username..." class="w-full outline-none text-gray-600" onkeyup="searchUsers()">
+            </div>
+
             <button onclick="openModal('add')" class="bg-teal-700 hover:bg-teal-800 text-white px-6 py-2 rounded-lg font-bold shadow transition">
                 <i class="fas fa-user-plus mr-2"></i> Tambah Akun
             </button>
@@ -306,8 +337,7 @@
         // Init Load
         loadUsers();
 
-        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
-
+        // --- MODAL LOGOUT ---
         function showLogoutModal() {
             document.getElementById('logoutModal').classList.remove('hidden');
         }
@@ -316,7 +346,25 @@
         }
 
         function doLogout() { localStorage.removeItem('user_session'); window.location.href = 'login.html'; }
-    
+        
+        // --- FITUR PENCARIAN ---
+        function searchUsers() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('#userContainer > div'); // Ambil semua kartu user
+
+            cards.forEach(card => {
+                const name = card.querySelector('h3').innerText.toLowerCase();
+                const username = card.querySelector('p.text-xs').innerText.toLowerCase();
+                const role = card.querySelector('span').innerText.toLowerCase();
+                
+                // Cek apakah input ada di nama atau username
+                if (name.includes(input) || username.includes(input) || role.includes(input)) {
+                    card.style.display = ""; // Tampilkan
+                } else {
+                    card.style.display = "none"; // Sembunyikan
+                }
+            });
+        }
     </script>
 </body>
 </html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Admin - Adi Jaya Store</title>
+    <link href="style.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .sidebar-bg { background-color: #0f4c5c; }
+        .card-bg-dark { background-color: #124e5e; }
+        .card-inner-bg { background-color: #1a7e91; }
+    </style>
+</head>
+<body class="bg-gray-50 flex h-screen font-sans">
+<script>
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
+
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'admin') {
+                alert("Akses Ditolak! Anda bukan Admin.");
+                window.location.href = 'transaksi.html';
+            }
+        }
+    </script>
+
+    <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 transition-all duration-300">
+        <div class="p-3 flex items-center gap-3">
+            <a href="admin_profil.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-user-shield text-2xl pe-3"></i>
+                <h2 class="text-xl font-bold">Administrasi</h2>
+            </a>
+        </div>
+        
+        <nav class="flex-1 px-4 space-y-2 overflow-y-auto pb-4">
+            <a href="index.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-home w-8 text-lg"></i> <span class="font-medium">Dashboard</span>
+            </a>
+
+            <a href="admin_users.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-users w-8 text-lg"></i> <span class="font-bold">Data Akun</span>
+            </a>
+
+            <a href="admin_help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-exclamation-circle w-8 text-lg"></i> <span class="font-bold">Help</span>
+            </a>
+
+            <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200 hover:text-red-100">
+                <i class="fas fa-sign-out-alt w-8 text-lg"></i> <span class="font-medium">Logout</span>
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-12 overflow-y-auto h-full flex flex-col items-center justify-center">
+        
+        <h1 class="text-3xl font-bold text-teal-800 mb-10 w-full max-w-4xl text-left">Profil Saya</h1>
+
+        <div class="card-bg-dark rounded-3xl p-8 shadow-2xl w-full max-w-4xl flex flex-col md:flex-row items-center gap-8 relative">
+            
+            <div class="bg-white p-2 rounded-2xl shadow-lg -mt-16 md:-mt-0 md:-ml-12 z-10 w-56 h-56 border-4 border-teal-600 flex-shrink-0">
+                <img id="profile-img" src="" alt="Foto Admin" class="w-full h-full object-cover rounded-xl">
+            </div>
+
+            <div class="card-inner-bg flex-1 p-8 rounded-xl w-full text-white shadow-inner">
+                <h2 class="text-center text-xl font-bold mb-8 border-b border-white/30 pb-4">Administrator</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <p class="text-sm opacity-90 mb-1">Nama Lengkap</p>
+                        <p id="profile-name" class="font-semibold text-xl">...</p>
+                        <div class="h-px bg-white/50 w-full mt-2"></div>
+                    </div>
+                    <div>
+                        <p class="text-sm opacity-90 mb-1">Username</p>
+                        <p id="profile-username" class="font-semibold text-xl">...</p>
+                        <div class="h-px bg-white/50 w-full mt-2"></div>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <div class="flex-1">
+                            <p class="text-sm opacity-90 mb-1">Password</p>
+                            <p class="font-semibold text-xl tracking-widest">********</p>
+                            <div class="h-px bg-white/50 w-full mt-2"></div>
+                        </div>
+                        <button onclick="showPasswordModal()" class="ml-4 bg-gray-200 text-teal-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition shadow">
+                            <i class="fas fa-key mr-2"></i> Ubah Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="passwordModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl w-96 shadow-2xl relative animate-bounce-in">
+            <h3 class="text-xl font-bold text-teal-800 mb-6 text-center">Ganti Password</h3>
+            
+            <form onsubmit="changePassword(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Password Baru</label>
+                    <div class="relative">
+                        <input type="password" id="newPassword" class="w-full border p-2 rounded pr-10 focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Minimal 6 karakter" required>
+                        <i onclick="toggleVisibility('newPassword')" class="fas fa-eye absolute right-3 top-3 text-gray-400 cursor-pointer hover:text-teal-600"></i>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Konfirmasi Password</label>
+                    <div class="relative">
+                        <input type="password" id="confirmPassword" class="w-full border p-2 rounded pr-10 focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Ulangi password" required>
+                        <i onclick="toggleVisibility('confirmPassword')" class="fas fa-eye absolute right-3 top-3 text-gray-400 cursor-pointer hover:text-teal-600"></i>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closePasswordModal()" class="text-gray-500 px-4 py-2 hover:bg-gray-100 rounded">Batal</button>
+                    <button type="submit" class="bg-teal-700 text-white px-6 py-2 rounded font-bold hover:bg-teal-800 transition">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-8 w-96 text-center shadow-2xl relative">
+            <h3 class="text-2xl font-bold text-teal-700 mb-6">Logout</h3>
+            <div class="bg-gray-200 py-4 px-2 rounded mb-6">
+                <p class="text-teal-800 font-bold text-lg">Apakah anda ingin keluar dari website?</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="doLogout()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Ya
+                </button>
+                <button onclick="closeLogoutModal()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Tidak
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. AMBIL DATA SESI
+        const session = JSON.parse(localStorage.getItem('user_session'));
+        
+        const user = session;
+
+        // 2. LOAD DATA PROFIL
+        document.getElementById('profile-img').src = user.foto || 'https://via.placeholder.com/150';
+        document.getElementById('profile-name').innerText = user.nama;
+        document.getElementById('profile-username').innerText = user.username;
+
+        // 3. FUNGSI MODAL & PASSWORD
+        function showPasswordModal() {
+            document.getElementById('passwordModal').classList.remove('hidden');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.add('hidden');
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        }
+
+        function toggleVisibility(id) {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        // 4. PROSES UBAH PASSWORD
+        async function changePassword(e) {
+            e.preventDefault();
+            
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+
+            // Validasi di Frontend
+            if (newPass.length < 6) {
+                return alert('Password terlalu pendek (minimal 6 karakter).');
+            }
+            if (newPass !== confirmPass) {
+                return alert('Konfirmasi password tidak cocok!');
+            }
+
+            try {
+                // Kirim ke Backend
+                const res = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_pengguna: user.id,
+                        new_password: newPass
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('Password Berhasil Diubah! Silakan login kembali.');
+                    doLogout(); // Auto Logout
+                } else {
+                    alert('Gagal: ' + result.message);
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan server.');
+            }
+        }
+
+        function showLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+        function doLogout() {
+            localStorage.removeItem('user_session');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

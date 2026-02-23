@@ -21,18 +21,47 @@
       }
     </style>
   </head>
+  
   <body class="bg-white flex h-screen font-sans overflow-hidden">
+    <script>
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
+
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'admin') {
+                alert("Akses Ditolak! Anda bukan Admin.");
+                window.location.href = 'transaksi.html';
+            }
+        }
+    </script>
     <aside
       class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 transition-all duration-300"
     >
-      <div class="p-6 flex items-center gap-3">
-        <i class="fas fa-user-shield text-2xl"></i>
-        <h2 class="text-xl font-bold">Administrasi</h2>
+      <div class="p-3 flex items-center gap-3">
+        <a
+          href="admin_profil.html"
+          class="flex items-center p-3 hover:bg-white/10 rounded-lg transition"
+        >
+          <i class="fas fa-user-shield text-2xl pe-3"></i>
+          <h2 class="text-xl font-bold">Administrasi</h2>
+        </a>
       </div>
 
       <nav class="flex-1 px-4 space-y-2 overflow-y-auto pb-4">
         <a
-          href="admin_dashboard.html"
+          href="index.html"
           class="flex items-center p-3 hover:bg-white/10 rounded-lg transition"
         >
           <i class="fas fa-home w-8 text-lg"></i>
@@ -71,52 +100,45 @@
       </h1>
 
       <div class="space-y-6 text-lg">
-        <div class="items-start gap-4">
-          <div class="flex items-center gap-3">
-            <i class="fas fa-user-shield text-2xl"></i>
-            <h2 class="text-xl font-bold">Administrasi</h2>
-          </div>
-          <p>Sebuah menu yang menuju ke akun admin itu sendiri</p>
+        <div class="flex items-start gap-4">
+          <i class="fas fa-user-shield text-2xl w-8"></i>
+          <p>
+            <span class="text-xl font-bold">Administrasi</span>
+            Sebuah menu yang menuju ke akun admin itu sendiri
+          </p>
         </div>
 
-        <div class="items-start gap-4">
-          <div class="flex items-center gap-3">
-            <i class="fas fa-home text-2xl"></i>
-            <span class="font-bold">Dashboard</span>
-          </div>
+        <div class="flex items-start gap-4">
+          <i class="fas fa-home text-2xl w-8"></i>
           <p>
+            <span class="font-bold">Dashboard</span>
             Sebuah menu yang menuju ke Dashboard yang berisi informasi tentang
             keuangan
           </p>
         </div>
 
-        <div class="items-start gap-4">
-          <div class="flex items-center gap-3">
-            <i class="fas fa-users text-2xl"></i>
+        <div class="flex items-start gap-4">
+          <i class="fas fa-users text-2xl w-8"></i>
+          <p>
             <span class="font-bold">Data Akun</span>
-          </div>
-          <p>Sebuah menu yang menuju ke manajemen akun</p>
+            Sebuah menu yang menuju ke manajemen akun
+          </p>
         </div>
 
-        <div class="items-start gap-4">
-          <div class="flex items-center gap-3">
-            <i class="fas fa-exclamation-circle text-2xl"></i>
-            <span class="font-bold">Help</span>
-          </div>
+        <div class="flex items-start gap-4">
+          <i class="fas fa-exclamation-circle text-2xl w-8"></i>
           <p>
+            <span class="font-bold">Help :</span>
             Sebuah menu yang menuju ke petunjuk pemakaian Aplikasi dan pusat
             bantuan
           </p>
         </div>
 
-        <div class="items-start gap-4">
-          <div class="flex items-center gap-3">
-            <i class="fas fa-sign-out-alt text-2xl"></i>
-            <span class="font-bold">Logout</span>
-          </div>
+        <div class="flex items-start gap-4">
+          <i class="fas fa-sign-out-alt text-2xl w-8"></i>
           <p>
-            Sebuah menu yang menuju ke verifikasi apakah ingin keluar dari
-            aplikasi
+            <span class="font-bold">Logout :</span> Sebuah menu yang menuju ke
+            verifikasi apakah ingin keluar dari aplikasi
           </p>
         </div>
 
@@ -130,35 +152,105 @@
 
         <div class="items-center gap-4 mt-8">
           <span
-            onclick="exportPDF('tablePemasukan', 'Laporan_Pemasukan')"
             class="bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700"
           >
             <i class="fas fa-file-pdf mr-2"></i> Export PDF
           </span>
           <p>Sebuah tombol untuk mengexport sebuah data kedalam bentuk PDF</p>
         </div>
-        
-        <div class="items-center gap-4 mt-8">
-          <span onclick="openAddPengeluaran()" class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700"><i class="fas fa-edit mr-2"></i> Add Needs</span>
+
+        <div class="items-center gap-4">
+          <span
+            class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700"
+            ><i class="fas fa-edit mr-2"></i> Add Needs</span
+          >
           <p>Sebuah tombol untuk menambah sebuah data kedalam tabel</p>
         </div>
 
         <div class="items-center gap-4">
-          <span
-            class="bg-teal-custom text-white font-bold py-2 px-6 rounded shadow"
+          <button
+            class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700 transition shadow"
           >
-            Tambah Stok
-          </span>
-          <p>Sebuah tombol untuk penambahan suatu stok prodak</p>
+            <i class="fas fa-plus mr-2"></i> Tambahkan
+          </button>
+          <p>Sebuah tombol untuk penambahan suatu data pengeluaran</p>
         </div>
 
         <div class="items-center gap-4">
-          <span
-            class="bg-teal-custom text-white font-bold py-2 px-6 rounded shadow"
+          <button
+            class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700 transition"
           >
-            Update
-          </span>
+            <i class="fas fa-plus mr-2"></i> Tambah Barang
+          </button>
+          <p>Sebuah tombol untuk penambahan suatu data barang</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <div class="relative w-1/3">
+            <input
+              type="text"
+              id="searchBarangInput"
+              placeholder=""
+              class="w-full border border-teal-300 rounded-full px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-teal-500 transition shadow-sm"
+            />
+            <i class="fas fa-search absolute left-4 top-3 text-teal-500"></i>
+          </div>
+          <p>Sebuah kolom untuk mencari data pada tabel</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <div class="flex gap-3">
+            <button class="text-gray-400 hover:text-teal-600" title="Detail">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <p>Sebuah tombol untuk melihat detail data akun</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <div class="flex gap-3">
+            <button
+              class="text-blue-500 hover:text-blue-700 tooltip"
+              title="Edit"
+            >
+              <i class="fas fa-edit text-lg"></i>
+            </button>
+          </div>
           <p>Sebuah tombol untuk ngengupdate perbaharuan</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <div class="flex gap-3">
+            <button
+              class="text-red-400 hover:text-red-600 tooltip"
+              title="Hapus"
+            >
+              <i class="fas fa-trash text-lg"></i>
+            </button>
+          </div>
+          <p>Sebuah tombol untuk mengapus</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <div class="flex gap-3">
+            <button
+              class="bg-teal-700 hover:bg-teal-800 text-white px-6 py-2 rounded-lg font-bold shadow transition"
+            >
+              <i class="fas fa-user-plus mr-2"></i> Tambah Akun
+            </button>
+          </div>
+          <p>Sebuah tombol untuk menambah akun</p>
+        </div>
+
+        <div class="items-center gap-4">
+          <div class="flex gap-3">
+            <button
+              class="bg-gray-200 text-teal-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition shadow"
+            >
+              <i class="fas fa-key mr-2"></i> Ubah Password
+            </button>
+          </div>
+          <p>Sebuah tombol untuk mengubah password</p>
         </div>
       </div>
 
@@ -203,9 +295,6 @@
     </div>
 
     <script>
-      if (!localStorage.getItem("user_session"))
-        window.location.href = "login.html";
-
       function showLogoutModal() {
         document.getElementById("logoutModal").classList.remove("hidden");
       }
