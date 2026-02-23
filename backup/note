@@ -1,0 +1,20 @@
+-tambahkan profil admin --
+    -ubah password --
+-tambahkan pencarian di tabel data akun --
+-tambahkan pencarian di tabel data barang --
+-tambahkan pencarian di tabel data transaksi --
+-tambahkan pencarian di tabel data pengeluaran --
+-perbaiki tabel pengeluaran --
+-tambahkan semua komponen admin help --
+    -detail akun --
+    -ubah akun --
+    -tambah akun --
+    -hapus akun -- 
+    -menu dashboard --
+        -pendapatan --
+        -pengeluaran --
+        -transaksi --
+        -menu barang --
+-perbaiki chart transaksi --
+-tambahkan logika agar tidak bisa masuk ke halaman admin atau kasir kecuali halaman admin dengan login role admin dan jika halaman kasir dengan login role kasir
+
