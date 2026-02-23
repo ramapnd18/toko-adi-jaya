@@ -11,22 +11,49 @@
     </style>
 </head>
 <body class="bg-white flex h-screen font-sans">
+    <script>
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
 
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'kasir') {
+                alert("Akses Ditolak! Halaman ini khusus Kasir.");
+                window.location.href = 'admin_dashboard.html';
+            }
+        }
+    </script>
+    
     <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 rounded-e-3xl">
         <div class="p-6"></div>
+        
         <nav class="flex-1 px-4 space-y-4">
             <a href="akun.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
                 <i class="fas fa-user-circle w-8 text-xl"></i>
                 <span class="font-semibold">Profil</span>
             </a>
+            
             <a href="transaksi.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
                 <i class="fas fa-exchange-alt w-8 text-xl"></i>
                 <span class="font-semibold">Transaksi</span>
             </a>
+
             <a href="help.html" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
                 <i class="fas fa-exclamation-circle w-8 text-xl"></i>
                 <span class="font-bold">Help</span>
             </a>
+
             <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200">
                 <i class="fas fa-sign-out-alt w-8 text-xl"></i>
                 <span class="font-semibold">Logout</span>
@@ -40,11 +67,11 @@
         <div class="space-y-6 text-teal-900 text-lg">
             <div class="flex items-start gap-4">
                 <i class="fas fa-user-circle text-2xl w-8"></i>
-                <p><span class="font-bold">Akun :</span> Sebuah menu yang menuju ke manajemen akun kasir</p>
+                <p><span class="font-bold">Profil :</span> Sebuah menu yang menuju ke profil kasir</p>
             </div>
             <div class="flex items-start gap-4">
                 <i class="fas fa-exchange-alt text-2xl w-8"></i>
-                <p><span class="font-bold">Transaksi :</span> Sebuah menu yang menuju ke verifikasi apakah ingin keluar dari aplikasi (Catatan: Mockup teksnya mungkin typo, tapi ini menu Transaksi)</p>
+                <p><span class="font-bold">Transaksi :</span> Sebuah Menu yang menuju ke Transaksi</p>
             </div>
             <div class="flex items-start gap-4">
                 <i class="fas fa-exclamation-circle text-2xl w-8"></i>
@@ -55,11 +82,18 @@
                 <p><span class="font-bold">Logout :</span> Sebuah menu yang menuju ke verifikasi apakah ingin keluar dari aplikasi</p>
             </div>
             
-            <div class="flex items-center gap-4 mt-6">
+            <div class=" items-center gap-4 mt-6">
                 <button class="bg-teal-700 hover:bg-teal-800 text-white font-bold py-2 px-8 rounded shadow">
                     <i class="fas fa-plus mr-2"></i> Tambah
                 </button>
-                <p>: Sebuah tombol untuk ngengupdate perbaharuan</p>
+                <p> Sebuah tombol untuk ngengupdate perbaharuan</p>
+            </div>
+            
+            <div class=" items-center gap-4 mt-6">
+                <button class="bg-green-600 hover:bg-green-800 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition flex items-center">
+                <i class="fas fa-print mr-2"></i> Bayar & Cetak Struk
+                </button>
+                <p> Sebuah Tombol untuk mencetak struk dan Konfirmasi Pembayaran</p>
             </div>
         </div>
 
@@ -92,8 +126,6 @@
     </div>
 
     <script>
-        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
-
         function showLogoutModal() {
             document.getElementById('logoutModal').classList.remove('hidden');
         }

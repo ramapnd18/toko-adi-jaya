@@ -8,27 +8,77 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    
     <style>
         .sidebar-bg { background-color: #0f4c5c; }
         .card-teal { background-color: #157f8f; }
+    
+        /* Custom Style untuk Tom Select agar mirip input lainnya */
+        .ts-control {
+            border: 1px solid #14b8a6; /* Warna teal-500 */
+            border-radius: 0.375rem;
+            padding: 8px 12px;
+            font-size: 1rem;
+        }
+        .ts-control:focus {
+            box-shadow: 0 0 0 2px #5eead4; /* Ring teal-300 */
+        }
+        .ts-dropdown {
+            border-color: #14b8a6;
+            z-index: 50; /* Agar muncul di atas elemen lain */
+        }
     </style>
 </head>
 <body class="bg-gray-50 flex h-screen overflow-hidden font-sans">
 
+    <script>
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
+
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'kasir') {
+                alert("Akses Ditolak! Halaman ini khusus Kasir.");
+                window.location.href = 'admin_dashboard.html';
+            }
+        }
+    </script>
+    
     <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10 rounded-e-3xl">
         <div class="p-6"></div>
+        
         <nav class="flex-1 px-4 space-y-4">
             <a href="akun.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
-                <i class="fas fa-user-circle w-8 text-xl"></i><span class="font-semibold">Profil</span>
+                <i class="fas fa-user-circle w-8 text-xl"></i>
+                <span class="font-semibold">Profil</span>
             </a>
-            <a href="transaksi.html" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
-                <i class="fas fa-exchange-alt w-8 text-xl"></i><span class="font-bold">Transaksi</span>
+            
+            <a href="transaksi.html" class="flex itemsflex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
+                <i class="fas fa-exchange-alt w-8 text-xl"></i>
+                <span class="font-bold">Transaksi</span>
             </a>
+
             <a href="help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
-                <i class="fas fa-exclamation-circle w-8 text-xl"></i><span class="font-semibold">Help</span>
+                <i class="fas fa-exclamation-circle w-8 text-xl"></i>
+                <span class="font-semibold">Help</span>
             </a>
+
             <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200">
-                <i class="fas fa-sign-out-alt w-8 text-xl"></i><span class="font-semibold">Logout</span>
+                <i class="fas fa-sign-out-alt w-8 text-xl"></i>
+                <span class="font-semibold">Logout</span>
             </button>
         </nav>
     </aside>
@@ -136,39 +186,64 @@
     </div>
 
     <script>
-        // 1. Cek Sesi Login
-        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
-        
+                
         let productList = [];
         let cart = [];
         let currentTotal = 0; // Variabel global untuk menyimpan total belanja
 
-        // --- 1. Load Data ---
+        // --- 1. Load Data Barang ke Combo Box (DENGAN PENCARIAN) ---
         async function loadProducts() {
             try {
                 const res = await fetch('/api/barang');
                 productList = await res.json();
+                
                 const select = document.getElementById('inputBarang');
+                // Kosongkan opsi lama (kecuali placeholder)
+                select.innerHTML = '<option value="">-- Cari Nama / Kode Barang --</option>';
+
                 productList.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item.kode_barang;
-                    option.text = `${item.nama_barang} (Rp ${item.harga_jual.toLocaleString()})`;
+                    // Kita gabungkan Kode + Nama + Harga agar kasir bisa mencari berdasarkan apa saja
+                    option.text = `${item.nama_barang} | ${item.kode_barang} | Rp ${item.harga_jual.toLocaleString()}`;
+                    
+                    // Simpan data stok di atribut agar mudah diambil nanti
+                    option.setAttribute('data-stok', item.stok);
+                    
                     select.appendChild(option);
                 });
-            } catch (err) { console.error(err); }
+
+                // --- AKTIFKAN TOM SELECT (SEARCHABLE) ---
+                new TomSelect("#inputBarang", {
+                    create: false, // User tidak boleh nambah manual, harus pilih yg ada
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    },
+                    placeholder: "Ketik untuk mencari...",
+                    // Event saat user memilih barang
+                    onChange: function(value) {
+                        // Panggil logika cek stok manual karena event listener 'change' biasa mungkin tertimpa
+                        checkStok(value);
+                    }
+                });
+
+            } catch (err) { console.error("Gagal load barang", err); }
         }
 
-        // --- 2. Cek Stok saat Pilih Barang ---
-        document.getElementById('inputBarang').addEventListener('change', function() {
-            const item = productList.find(p => p.kode_barang == this.value);
+        // --- Fungsi Helper Cek Stok (Dipisah agar rapi) ---
+        function checkStok(kode) {
+            const item = productList.find(p => p.kode_barang == kode);
             const stokInfo = document.getElementById('stokInfo');
+            
             if (item) {
                 stokInfo.innerText = `Stok Tersedia: ${item.stok}`;
                 stokInfo.className = item.stok === 0 ? "text-xs text-red-600 font-bold mt-1" : "text-xs text-gray-500 mt-1";
             } else {
                 stokInfo.innerText = "Stok Tersedia: -";
             }
-        });
+        }
+
 
         // --- 3. Hitung Kembalian Otomatis ---
         const inputBayar = document.getElementById('inputBayar');
@@ -304,45 +379,95 @@
             } catch (err) { alert("Error server"); }
         }
 
-        // --- 7. Cetak Struk PDF (Update dengan Bayar & Kembali) ---
+        // --- 7. Cetak Struk PDF (Fit to Content / Auto Height) ---
         function printReceipt(idTrx, kasir, total, bayar, kembali) {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ width: 80, height: 120 + (cart.length * 5) });
 
-            doc.setFontSize(10);
-            doc.text("ADI JAYA STORE", 40, 10, { align: "center" });
-            doc.setFontSize(8);
-            doc.text("Jl. Siliwangi No. 123", 40, 15, { align: "center" });
-            doc.text("-".repeat(45), 40, 20, { align: "center" });
-
-            doc.text(`No: ${idTrx}`, 5, 25);
-            doc.text(`Kasir: ${kasir}`, 5, 30);
+            // --- A. HITUNG TINGGI KERTAS DINAMIS ---
+            const headerHeight = 45;  // Ruang untuk Judul, Alamat, Info Transaksi
+            const footerHeight = 40;  // Ruang untuk Total, Bayar, Kembali, Ucapan
+            const itemHeight = 10;    // Ruang per barang (estimasi 2 baris per barang)
             
-            let y = 40;
+            // Hitung total tinggi berdasarkan jumlah barang di keranjang
+            const pageHeight = headerHeight + footerHeight + (cart.length * itemHeight);
+
+            // --- B. BUAT PDF DENGAN UKURAN KHUSUS ---
+            // format: [lebar, tinggi] -> [80mm, pageHeight]
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [80, pageHeight] 
+            });
+
+            // --- C. ISI KONTEN ---
+            let y = 10; // Posisi vertikal awal
+
+            // 1. Header
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("ADI JAYA STORE", 40, y, { align: "center" });
+            y += 5;
+            
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.text("Jl. Siliwangi No. 123", 40, y, { align: "center" });
+            y += 5;
+            doc.text("-".repeat(45), 40, y, { align: "center" });
+            y += 5;
+
+            // Info Transaksi
+            doc.text(`No: ${idTrx}`, 5, y);
+            y += 4;
+            doc.text(`Kasir: ${kasir}`, 5, y);
+            y += 4;
+            doc.text(`Tgl: ${new Date().toLocaleDateString()}`, 5, y);
+            y += 6;
+
+            // 2. Daftar Barang
             cart.forEach(item => {
-                doc.text(`${item.nama.substring(0, 15)}`, 5, y);
-                doc.text(`x${item.qty}`, 40, y);
+                // Nama Barang (Baris 1)
+                doc.setFont("helvetica", "bold");
+                // Potong nama jika terlalu panjang agar tidak merusak layout
+                let namaBarang = item.nama.length > 25 ? item.nama.substring(0, 25) + "..." : item.nama;
+                doc.text(namaBarang, 5, y);
+                y += 4;
+
+                // Qty & Harga (Baris 2)
+                doc.setFont("helvetica", "normal");
+                doc.text(`${item.qty} x ${item.harga.toLocaleString()}`, 5, y);
                 doc.text(item.subtotal.toLocaleString(), 75, y, { align: "right" });
-                y += 5;
+                y += 6; // Jarak antar item
             });
 
             doc.text("-".repeat(45), 40, y, { align: "center" });
             y += 5;
 
+            // 3. Footer (Total & Pembayaran)
             doc.setFontSize(9);
-            // Info Pembayaran
-            doc.text("TOTAL:", 5, y+5);
-            doc.text(total.toLocaleString(), 75, y+5, { align: "right" });
+            
+            // Total
+            doc.setFont("helvetica", "bold");
+            doc.text("TOTAL:", 5, y);
+            doc.text(total.toLocaleString(), 75, y, { align: "right" });
+            y += 5;
 
-            doc.text("BAYAR:", 5, y+10);
-            doc.text(bayar.toLocaleString(), 75, y+10, { align: "right" });
+            // Bayar
+            doc.setFont("helvetica", "normal");
+            doc.text("BAYAR:", 5, y);
+            doc.text(bayar.toLocaleString(), 75, y, { align: "right" });
+            y += 5;
 
-            doc.text("KEMBALI:", 5, y+15);
-            doc.text(kembali.toLocaleString(), 75, y+15, { align: "right" });
+            // Kembali
+            doc.text("KEMBALI:", 5, y);
+            doc.text(kembali.toLocaleString(), 75, y, { align: "right" });
+            y += 10;
 
+            // Ucapan Penutup
             doc.setFontSize(8);
-            doc.text("Terima Kasih", 40, y+25, { align: "center" });
+            doc.setFont("helvetica", "italic");
+            doc.text("Terima Kasih atas Kunjungan Anda", 40, y, { align: "center" });
 
+            // Simpan File
             doc.save(`Struk-${idTrx}.pdf`);
         }
 

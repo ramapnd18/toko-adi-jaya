@@ -41,9 +41,15 @@
     </div>
 
     <script>
-        // Cek jika sudah login, langsung lempar ke transaksi
-        if (localStorage.getItem('user_session')) {
-            window.location.href = 'transaksi.html';
+        // Cek jika sudah login, langsung arahkan sesuai role
+        const session = JSON.parse(localStorage.getItem('user_session'));
+        
+        if (session) {
+            if (session.role === 'admin') {
+                window.location.href = 'admin_dashboard.html';
+            } else {
+                window.location.href = 'transaksi.html';
+            }
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -60,16 +66,25 @@
                 const result = await res.json();
 
                 if (result.success) {
-                    localStorage.setItem('user_session', JSON.stringify(result.data));
+                    // Tentukan durasi sesi (contoh: 2 Jam)
+                    const durasi = 2 * 60 * 60 * 1000; // 2 jam dalam milidetik
+                    const waktuSekarang = new Date().getTime();
                     
-                    // CEK ROLE UNTUK REDIRECT
+                    // Masukkan waktu kedaluwarsa ke dalam data user
+                    const dataSession = {
+                        ...result.data,
+                        expiry: waktuSekarang + durasi 
+                    };
+
+                    // Simpan ke LocalStorage
+                    localStorage.setItem('user_session', JSON.stringify(dataSession));
+                    
+                    // Cek Role
                     if (result.data.role === 'admin') {
-                        window.location.href = 'admin_dashboard.html';
+                        window.location.href = 'index.html';
                     } else {
                         window.location.href = 'transaksi.html';
                     }
-                } else {
-                    alert('Login gagal: ' + result.message);
                 }
             } catch (err) {
                 console.error(err);

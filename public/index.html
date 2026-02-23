@@ -3,58 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Katalog - Adi Jaya Store</title>
+    <title>Dashboard Admin - Adi Jaya Store</title>
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         .sidebar-bg { background-color: #0f4c5c; }
-        .btn-teal { background-color: #1a6f80; }
-        /* Animasi Loading */
-        .loader {
-            border-top-color: #3498db;
-            -webkit-animation: spinner 1.5s linear infinite;
-            animation: spinner 1.5s linear infinite;
-        }
-        @keyframes spinner {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        .active-card { border: 2px solid #0f4c5c; background-color: #0f766e; transform: scale(1.02); color: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: space-between; }
+        .card-transition { transition: all 0.3s ease; cursor: pointer; }
     </style>
 </head>
-<body class="bg-gray-100 flex h-screen font-sans overflow-hidden">
-
+<body class="bg-gray-50 flex h-screen overflow-hidden font-sans">
     <script>
-        // Jika tidak ada sesi user, tendang ke login
-        if (!localStorage.getItem('user_session')) {
+        const sessionRaw = localStorage.getItem('user_session');
+        
+        // 1. Cek apakah ada sesi?
+        if (!sessionRaw) {
             window.location.href = 'login.html';
+        } else {
+            const session = JSON.parse(sessionRaw);
+            const now = new Date().getTime();
+
+            // 2. Cek apakah sesi sudah kadaluwarsa?
+            if (now > session.expiry) {
+                alert("Sesi Anda telah berakhir. Silakan login kembali.");
+                localStorage.removeItem('user_session');
+                window.location.href = 'login.html';
+            }
+            // 3. Cek Role
+            else if (session.role !== 'admin') {
+                alert("Akses Ditolak! Anda bukan Admin.");
+                window.location.href = 'transaksi.html';
+            }
         }
     </script>
-
+    
     <aside class="w-64 sidebar-bg text-white flex flex-col fixed h-full z-10">
-        <div class="p-6"></div>
-        
-        <nav class="flex-1 px-4 space-y-4">
-            <a href="index.html" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
-                <i class="fas fa-home w-8 text-xl"></i>
-                <span class="font-bold">Katalog</span>
+        <div class="p-3 flex items-center gap-3">
+            <a href="admin_profil.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-user-shield text-2xl pe-3"></i>
+                <h2 class="text-xl font-bold">Administrasi</h2>
             </a>
-
-            <a href="akun.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
-                <i class="fas fa-user-circle w-8 text-xl"></i>
-                <span class="font-semibold">Akun</span>
+        </div>
+        <nav class="flex-1 px-4 space-y-2">
+            <a href="#" onclick="location.reload()" class="flex items-center p-3 bg-gray-300 text-gray-800 rounded-l-full -mr-4 shadow-lg transition relative">
+                <i class="fas fa-home w-8 text-lg"></i> 
+                <span class="font-bold">Dashboard</span>
             </a>
-            
-            <a href="transaksi.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
-                <i class="fas fa-exchange-alt w-8 text-xl"></i>
-                <span class="font-semibold">Transaksi</span>
+            <a href="admin_users.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+                <i class="fas fa-users w-8 text-lg"></i> 
+                <span class="font-semibold">Data Akun</span>
             </a>
-
-            <a href="help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
+            <a href="admin_help.html" class="flex items-center p-3 hover:bg-white/10 rounded-lg transition">
                 <i class="fas fa-exclamation-circle w-8 text-xl"></i>
                 <span class="font-semibold">Help</span>
             </a>
-
-            <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left">
+            <button onclick="showLogoutModal()" class="flex items-center w-full p-3 hover:bg-white/10 rounded-lg transition mt-8 text-left text-red-200">
                 <i class="fas fa-sign-out-alt w-8 text-xl"></i>
                 <span class="font-semibold">Logout</span>
             </button>
@@ -62,22 +71,54 @@
     </aside>
 
     <main class="flex-1 ml-64 p-8 overflow-y-auto h-full">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-teal-800">Katalog Barang</h1>
-            <div class="flex items-center gap-4">
-                <span id="userWelcome" class="text-gray-600 font-medium">Halo, Kasir</span>
-                <div class="bg-teal-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                    K
+        <h1 class="text-3xl font-bold text-teal-800 mb-6">Dashboard</h1>
+
+        <div class="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div onclick="switchTab('pemasukan')" id="card-pemasukan" class="card-transition bg-white p-6 rounded-2xl shadow border border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 id="statPendapatan" class="text-lg font-bold ">Rp 0</h3>
+                    <p class="text-xs  font-bold uppercase">Pendapatan</p>
                 </div>
+                <i class="fas fa-wallet text-3xl text-teal-600"></i>
+            </div>
+
+            <div onclick="switchTab('pengeluaran')" id="card-pengeluaran" class="card-transition bg-white p-6 rounded-2xl shadow border border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 id="statPengeluaran" class="text-lg font-bold">Rp 0</h3>
+                    <p class="text-xs opacity-90 font-bold uppercase">Pengeluaran</p>
+                </div>
+                <i class="fas fa-money-bill-wave text-3xl"></i>
+            </div>
+
+            <div onclick="switchTab('transaksi')" id="card-transaksi" class="card-transition bg-white p-6 rounded-2xl shadow border border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold ">Cashier</h3>
+                    <p class="text-xs  font-bold uppercase">Transaksi</p>
+                </div>
+                <i class="fas fa-sync text-3xl "></i>
+            </div>
+
+            <div onclick="switchTab('barang')" id="card-barang" class="card-transition bg-white p-6 rounded-2xl shadow border border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold ">Stock</h3>
+                    <p class="text-xs  font-bold uppercase">Data Barang</p>
+                </div>
+                <i class="fas fa-shopping-bag text-3xl "></i>
             </div>
         </div>
 
-        <div id="product-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="col-span-full flex justify-center py-20">
-                <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
-            </div>
+        <div id="dynamic-content" class="bg-white p-8 rounded-2xl shadow min-h-[400px]">
+            <p class="text-center text-gray-400 py-10">Memuat data...</p>
         </div>
     </main>
+
+    <div id="modalForm" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl w-1/3 shadow-2xl relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-red-500"><i class="fas fa-times"></i></button>
+            <h2 id="modalTitle" class="text-2xl font-bold text-teal-800 mb-6">Form</h2>
+            <div id="modalContent"></div>
+        </div>
+    </div>
 
     <div id="logoutModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg p-8 w-96 text-center shadow-2xl relative">
@@ -86,80 +127,601 @@
                 <p class="text-teal-800 font-bold text-lg">Apakah anda ingin keluar dari website?</p>
             </div>
             <div class="flex justify-center gap-4">
-                <button onclick="doLogout()" class="bg-gray-300 hover:bg-gray-400 text-teal-900 font-bold py-2 px-8 rounded shadow transition">Ya</button>
-                <button onclick="closeLogoutModal()" class="bg-gray-300 hover:bg-gray-400 text-teal-900 font-bold py-2 px-8 rounded shadow transition">Tidak</button>
+                <button onclick="doLogout()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Ya
+                </button>
+                <button onclick="closeLogoutModal()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">
+                    Tidak
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. Tampilkan Nama User dari Sesi
-        const session = JSON.parse(localStorage.getItem('user_session'));
-        if (session) {
-            document.getElementById('userWelcome').innerText = `Halo, ${session.nama}`;
-        }
+        // 1. CEK SESI
+        if (!localStorage.getItem('user_session')) window.location.href = 'login.html';
 
-        // 2. Logic Modal Logout
-        function showLogoutModal() { document.getElementById('logoutModal').classList.remove('hidden'); }
-        function closeLogoutModal() { document.getElementById('logoutModal').classList.add('hidden'); }
-        function doLogout() {
-            localStorage.removeItem('user_session');
-            window.location.href = 'login.html';
-        }
-
-        // 3. Fetch Data Barang (Katalog)
-        async function loadProducts() {
+        // 2. LOAD STATISTIK KARTU ATAS
+        async function loadStats() {
             try {
-                const response = await fetch('/api/barang');
-                const products = await response.json();
-                const container = document.getElementById('product-container');
-                
-                container.innerHTML = ''; // Hapus loader
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                document.getElementById('statPendapatan').innerText = `Rp ${parseInt(data.pendapatan || 0).toLocaleString()}`;
+                document.getElementById('statPengeluaran').innerText = `Rp ${parseInt(data.pengeluaran || 0).toLocaleString()}`;
+            } catch (err) { console.error(err); }
+        }
+        loadStats();
 
-                if (products.length === 0) {
-                    container.innerHTML = '<p class="text-center text-gray-500 col-span-full">Belum ada data barang.</p>';
-                    return;
-                }
+        // 3. FUNGSI GANTI TAB (CORE LOGIC)
+        function switchTab(tabName) {
+            // Reset Style Kartu
+            document.querySelectorAll('.card-transition').forEach(el => {
+                el.classList.remove('active-card'); 
+            });
+            document.getElementById(`card-${tabName}`).classList.add('active-card');
 
-                products.forEach(item => {
-                    const harga = parseFloat(item.harga_jual).toLocaleString('id-ID');
-                    // Tentukan warna stok (Merah jika sedikit)
-                    const stokColor = item.stok < 10 ? 'text-red-600' : 'text-gray-600';
+            const container = document.getElementById('dynamic-content');
+            
+            // Render Konten Berdasarkan Tab
+            if (tabName === 'pemasukan') renderPemasukan(container);
+            else if (tabName === 'pengeluaran') renderPengeluaran(container);
+            else if (tabName === 'transaksi') renderTransaksi(container);
+            else if (tabName === 'barang') renderBarang(container);
+        }
 
-                    const card = `
-                        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 group">
-                            <div class="h-40 bg-teal-50 flex flex-col items-center justify-center group-hover:bg-teal-100 transition-colors">
-                                <i class="fas fa-box-open text-4xl text-teal-300 mb-2"></i>
-                                <span class="text-xs text-teal-600 font-mono bg-white px-2 py-1 rounded shadow-sm">${item.kode_barang}</span>
-                            </div>
-                            <div class="p-5">
-                                <h3 class="text-lg font-bold text-gray-800 mb-1 truncate">${item.nama_barang}</h3>
-                                
-                                <div class="flex justify-between items-center text-sm mb-4">
-                                    <span class="${stokColor} font-medium"><i class="fas fa-cubes mr-1"></i> Stok: ${item.stok}</span>
-                                </div>
+        // Variabel global untuk menyimpan data transaksi
+        let allTransaksiData = [];
 
-                                <div class="flex justify-between items-center border-t pt-4">
-                                    <span class="text-teal-700 font-bold text-lg">Rp ${harga}</span>
-                                    <a href="transaksi.html" class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-lg text-sm transition-colors shadow-sm">
-                                        <i class="fas fa-cart-plus"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    container.innerHTML += card;
-                });
+        // --- 3. LOGIKA PEMASUKAN (UPDATE: SEARCHABLE) ---
+        async function renderPemasukan(container) {
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-teal-800">Data Pemasukan</h2>
+                    
+                    <div class="relative w-1/3">
+                        <input type="text" id="searchPemasukanInput" placeholder="Cari ID TRX atau Nama Kasir..." 
+                            class="w-full border border-teal-300 rounded-full px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-teal-500 transition shadow-sm text-sm"
+                            onkeyup="filterPemasukan()">
+                        <i class="fas fa-search absolute left-4 top-3 text-teal-500"></i>
+                    </div>
+                </div>
 
-            } catch (error) {
-                console.error('Gagal mengambil data:', error);
-                document.getElementById('product-container').innerHTML = 
-                    '<p class="text-center text-red-500 col-span-full">Gagal memuat data server.</p>';
+                <div class="flex gap-2 mb-4">
+                    <button onclick="exportExcel('tablePemasukan', 'Laporan_Pemasukan')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition shadow"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+                    <button onclick="exportPDF('tablePemasukan', 'Laporan_Pemasukan')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition shadow"><i class="fas fa-file-pdf mr-2"></i>Export PDF</button>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl shadow border border-gray-200">
+                    <table id="tablePemasukan" class="w-full text-left border-collapse">
+                        <thead class="bg-teal-50 text-teal-800 uppercase text-sm font-bold">
+                            <tr>
+                                <th class="p-4 border-b border-teal-100">No</th>
+                                <th class="p-4 border-b border-teal-100">Tanggal</th>
+                                <th class="p-4 border-b border-teal-100">ID Transaksi</th>
+                                <th class="p-4 border-b border-teal-100">Kasir</th>
+                                <th class="p-4 border-b border-teal-100 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyPemasukan" class="text-gray-700 text-sm">
+                            <tr><td colspan="5" class="p-8 text-center text-gray-400">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            try {
+                const res = await fetch('/api/transaksi-list');
+                allTransaksiData = await res.json();
+                displayPemasukanTable(allTransaksiData); // Tampilkan semua data awal
+            } catch (err) {
+                console.error(err);
             }
         }
 
-        // Jalankan saat halaman siap
-        loadProducts();
+        // --- FUNGSI FILTER PENCARIAN PEMASUKAN ---
+        function filterPemasukan() {
+            const keyword = document.getElementById('searchPemasukanInput').value.toLowerCase();
+            
+            // Filter berdasarkan ID Transaksi ATAU Nama Kasir
+            const filteredData = allTransaksiData.filter(item => 
+                item.id_transaksi.toLowerCase().includes(keyword) || 
+                (item.kasir && item.kasir.toLowerCase().includes(keyword))
+            );
+
+            displayPemasukanTable(filteredData);
+        }
+
+        // --- FUNGSI RENDER TABEL PEMASUKAN ---
+        function displayPemasukanTable(data) {
+            const tbody = document.getElementById('bodyPemasukan');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400 font-medium">Data tidak ditemukan</td></tr>`;
+                return;
+            }
+
+            data.forEach((item, index) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-teal-50 transition border-b border-gray-100 last:border-0">
+                        <td class="p-4 border-b border-gray-50">${index + 1}</td>
+                        <td class="p-4 border-b border-gray-50">${new Date(item.tanggal_transaksi).toLocaleDateString()}</td>
+                        <td class="p-4 border-b border-gray-50 font-mono text-teal-700 font-medium">${item.id_transaksi}</td>
+                        <td class="p-4 border-b border-gray-50 font-medium">${item.kasir || '-'}</td>
+                        <td class="p-4 border-b border-gray-50 text-right font-bold text-green-600">Rp ${item.total_bayar.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Variabel global untuk data pengeluaran
+        let allPengeluaranData = [];
+
+        // --- 4. LOGIKA PENGELUARAN (UPDATE: SEARCHABLE) ---
+        async function renderPengeluaran(container) {
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-teal-800">Outcome (Pengeluaran)</h2>
+                    
+                    <div class="relative w-1/3">
+                        <input type="text" id="searchPengeluaranInput" placeholder="Cari Item atau Keterangan..." 
+                            class="w-full border border-teal-300 rounded-full px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-teal-500 transition shadow-sm text-sm"
+                            onkeyup="filterPengeluaran()">
+                        <i class="fas fa-search absolute left-4 top-3 text-teal-500"></i>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                    <button onclick="exportExcel('tablePengeluaran', 'Laporan_Pengeluaran')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition shadow"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+                    <button onclick="openAddPengeluaran()" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700 transition shadow"><i class="fas fa-plus mr-2"></i> Tambahkan</button>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl shadow border border-gray-200">
+                    <table id="tablePengeluaran" class="w-full text-left border-collapse">
+                        <thead class="bg-teal-50 text-teal-800 uppercase text-sm font-bold">
+                            <tr>
+                                <th class="p-4 border-b border-teal-100">No</th>
+                                <th class="p-4 border-b border-teal-100">Date</th>
+                                <th class="p-4 border-b border-teal-100">Item Name</th>
+                                <th class="p-4 border-b border-teal-100">Description</th>
+                                <th class="p-4 border-b border-teal-100">Oleh</th>
+                                <th class="p-4 border-b border-teal-100 text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyPengeluaran" class="text-gray-700 text-sm">
+                            <tr><td colspan="6" class="p-8 text-center text-gray-400">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            try {
+                const res = await fetch('/api/pengeluaran');
+                allPengeluaranData = await res.json();
+                displayPengeluaranTable(allPengeluaranData); // Tampilkan data awal
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // --- FUNGSI FILTER PENCARIAN PENGELUARAN ---
+        function filterPengeluaran() {
+            const keyword = document.getElementById('searchPengeluaranInput').value.toLowerCase();
+            
+            // Filter berdasarkan Nama Item ATAU Keterangan
+            const filteredData = allPengeluaranData.filter(item => 
+                item.nama_pengeluaran.toLowerCase().includes(keyword) || 
+                (item.keterangan && item.keterangan.toLowerCase().includes(keyword))
+            );
+
+            displayPengeluaranTable(filteredData);
+        }
+
+        // --- FUNGSI RENDER TABEL PENGELUARAN ---
+        function displayPengeluaranTable(data) {
+            const tbody = document.getElementById('bodyPengeluaran');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400 font-medium">Data tidak ditemukan</td></tr>`;
+                return;
+            }
+
+            data.forEach((item, index) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-teal-50 transition border-b border-gray-100 last:border-0">
+                        <td class="p-4 border-b border-gray-50">${index + 1}</td>
+                        <td class="p-4 border-b border-gray-50">${new Date(item.tanggal).toLocaleDateString()}</td>
+                        <td class="p-4 border-b border-gray-50 font-bold text-gray-800">${item.nama_pengeluaran}</td>
+                        <td class="p-4 border-b border-gray-50 text-gray-600">${item.keterangan || '-'}</td>
+                        <td class="p-4 border-b border-gray-50 text-sm text-teal-600 font-medium">
+                            <i class="fas fa-user-circle mr-1"></i> ${item.pembuat || 'Sistem'}
+                        </td>
+                        <td class="p-4 border-b border-gray-50 text-right font-bold text-red-600">Rp ${item.jumlah.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- UPDATE BAGIAN RENDER TRANSAKSI (GRAFIK REAL) ---
+        async function renderTransaksi(container) {
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-teal-800">Analisis Transaksi</h2>
+                    
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-gray-50 p-4 rounded-xl border">
+                        <h3 class="font-bold mb-4 text-gray-700">Grafik Penjualan Bulanan</h3>
+                        <canvas id="chartCanvas" height="250"></canvas>
+                    </div>
+                    <div class="bg-teal-50 p-4 rounded-xl border border-teal-100">
+                        <h3 class="font-bold mb-4 text-teal-800">🔥 Barang Terlaris</h3>
+                        <ul id="listRekomendasi" class="space-y-3"></ul>
+                    </div>
+                </div>
+            `;
+
+            // 1. FETCH DATA REAL DARI SERVER
+            try {
+                const resChart = await fetch('/api/chart-transaksi');
+                const chartData = await resChart.json();
+
+                // 2. RENDER CHART DENGAN DATA ASLI
+                const ctx = document.getElementById('chartCanvas').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line', // Bisa diganti 'bar' jika ingin diagram batang
+                    data: {
+                        labels: chartData.labels, // Contoh: ['Januari', 'Februari', ...]
+                        datasets: [{
+                            label: 'Total Pendapatan (Rp)',
+                            data: chartData.data, // Contoh: [50000, 120000, ...]
+                            borderColor: '#0f4c5c', // Warna Garis (Teal Gelap)
+                            backgroundColor: 'rgba(15, 76, 92, 0.1)', // Warna Arsiran Bawah
+                            borderWidth: 2,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#0f4c5c',
+                            pointRadius: 5,
+                            fill: true,
+                            tension: 0.4 // Membuat garis sedikit melengkung (smooth)
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true },
+                            tooltip: {
+                                callbacks: {
+                                    // Format Rupiah di Tooltip saat mouse di-hover
+                                    label: function(context) {
+                                        let value = context.raw;
+                                        return 'Rp ' + value.toLocaleString('id-ID');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    // Format Rupiah di Sumbu Y (Kiri)
+                                    callback: function(value) {
+                                        return 'Rp ' + value.toLocaleString('id-ID');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (err) {
+                console.error("Gagal memuat grafik:", err);
+            }
+
+            // 3. FETCH BARANG TERLARIS (Kode Lama Tetap Ada)
+            const resRek = await fetch('/api/barang-terlaris');
+            const items = await resRek.json();
+            items.forEach((item, idx) => {
+                document.getElementById('listRekomendasi').innerHTML += `
+                    <li class="flex justify-between items-center bg-white p-3 rounded shadow-sm">
+                        <span>#${idx+1} ${item.nama_barang}</span>
+                        <span class="text-xs bg-teal-200 text-teal-800 px-2 py-1 rounded-full">${item.total_terjual} terjual</span>
+                    </li>
+                `;
+            });
+        }
+
+        // Variabel global untuk menampung data barang agar bisa dicari tanpa reload
+        let allBarangData = []; 
+
+        // --- 1. SETUP TAMPILAN DATA BARANG ---
+        async function renderBarang(container) {
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-teal-800">Master Data Barang</h2>
+                    
+                    <div class="relative w-1/3">
+                        <input type="text" id="searchBarangInput" placeholder="Cari Kode atau Nama Barang..." 
+                            class="w-full border border-teal-300 rounded-full px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-teal-500 transition shadow-sm"
+                            onkeyup="filterBarang()">
+                        <i class="fas fa-search absolute left-4 top-3 text-teal-500"></i>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                    <button onclick="exportExcel('tableBarang', 'Stok_Barang')" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 transition"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+                    <button onclick="openAddBarang()" class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700 transition"><i class="fas fa-plus mr-2"></i> Tambah Barang</button>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl shadow border border-gray-200">
+                    <table id="tableBarang" class="w-full text-left border-collapse">
+                        <thead class="bg-teal-50 text-teal-800 uppercase text-sm font-bold">
+                            <tr>
+                                <th class="p-4 border-b border-teal-100">Kode</th>
+                                <th class="p-4 border-b border-teal-100">Nama Produk</th>
+                                <th class="p-4 border-b border-teal-100 text-center">Stok</th>
+                                <th class="p-4 border-b border-teal-100 text-right">Harga Beli</th>
+                                <th class="p-4 border-b border-teal-100 text-right">Harga Jual</th>
+                                <th class="p-4 border-b border-teal-100 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyBarang" class="text-gray-700">
+                            <tr><td colspan="5" class="p-8 text-center text-gray-400">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            try {
+                // Fetch data sekali saja
+                const res = await fetch('/api/barang');
+                allBarangData = await res.json();
+                
+                // Tampilkan data awal (semua data)
+                displayBarangTable(allBarangData);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // --- 2. FUNGSI FILTER PENCARIAN ---
+        function filterBarang() {
+            const keyword = document.getElementById('searchBarangInput').value.toLowerCase();
+            
+            // Filter array berdasarkan Kode ATAU Nama
+            const filteredData = allBarangData.filter(item => 
+                item.kode_barang.toLowerCase().includes(keyword) || 
+                item.nama_barang.toLowerCase().includes(keyword)
+            );
+
+            displayBarangTable(filteredData);
+        }
+
+        // --- 3. FUNGSI RENDER TABEL (DIPISAH SUPAYA BISA DIPANGGIL ULANG) ---
+        function displayBarangTable(data) {
+            const tbody = document.getElementById('bodyBarang');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400 font-medium">Barang tidak ditemukan</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                // Warning warna merah jika stok menipis (dibawah 5)
+                const stokClass = item.stok < 5 ? 'text-red-600 font-bold' : 'text-gray-700';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-teal-50 transition border-b border-gray-100 last:border-0">
+                        <td class="p-4 font-mono text-sm text-teal-700 font-bold">${item.kode_barang}</td>
+                        <td class="p-4 font-medium">${item.nama_barang}</td>
+                        <td class="p-4 text-center ${stokClass}">${item.stok}</td>
+                        <td class="p-4 text-right font-medium">Rp ${item.harga_beli.toLocaleString()}</td>
+                        <td class="p-4 text-right font-medium">Rp ${item.harga_jual.toLocaleString()}</td>
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-3">
+                                <button onclick="openEditBarang('${item.kode_barang}')" class="text-blue-500 hover:text-blue-700 tooltip" title="Edit">
+                                    <i class="fas fa-edit text-lg"></i>
+                                </button>
+                                <button onclick="deleteBarang('${item.kode_barang}')" class="text-red-400 hover:text-red-600 tooltip" title="Hapus">
+                                    <i class="fas fa-trash text-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- LOGIKA FORM BARANG (TAMBAH & EDIT) ---
+        let isEditing = false; // Penanda apakah sedang edit atau tambah
+
+        // 1. Buka Modal Tambah
+        function openAddBarang() {
+            isEditing = false;
+            document.getElementById('modalTitle').innerText = "Tambah Barang Baru";
+            document.getElementById('modalContent').innerHTML = formBarangHTML();
+            document.getElementById('modalForm').classList.remove('hidden');
+        }
+
+        // 2. Buka Modal Edit
+        async function openEditBarang(kode) {
+            isEditing = true;
+            document.getElementById('modalTitle').innerText = "Edit Data Barang";
+            
+            // Ambil data lama dari server
+            const res = await fetch(`/api/barang/${kode}`);
+            const item = await res.json();
+
+            document.getElementById('modalContent').innerHTML = formBarangHTML(item);
+            document.getElementById('modalForm').classList.remove('hidden');
+        }
+
+        // 3. Template HTML Form Barang
+        function formBarangHTML(item = {}) {
+            return `
+                <form onsubmit="submitBarang(event)" class="space-y-4">
+                    <div>
+                        <label class="text-sm font-bold text-gray-600">Kode Barang</label>
+                        <input type="text" id="inputKode" value="${item.kode_barang || ''}" 
+                            class="w-full border p-2 rounded ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}" 
+                            ${isEditing ? 'readonly' : 'required'}>
+                    </div>
+                    
+                    <div>
+                        <label class="text-sm font-bold text-gray-600">Nama Barang</label>
+                        <input type="text" id="inputNama" value="${item.nama_barang || ''}" class="w-full border p-2 rounded" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm font-bold text-gray-600">Stok</label>
+                            <input type="number" id="inputStok" value="${item.stok || ''}" class="w-full border p-2 rounded" required>
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-600">Harga Beli</label>
+                            <input type="number" id="inputBeli" value="${item.harga_beli || ''}" class="w-full border p-2 rounded" required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-bold text-gray-600">Harga Jual</label>
+                        <input type="number" id="inputJual" value="${item.harga_jual || ''}" class="w-full border p-2 rounded" required>
+                    </div>
+
+                    <button type="submit" class="w-full bg-teal-700 text-white py-3 rounded font-bold hover:bg-teal-800 transition">
+                        ${isEditing ? 'Update Data' : 'Simpan Data'}
+                    </button>
+                </form>
+            `;
+        }
+
+        // 4. Proses Simpan Barang (Update: Kirim ID User)
+        async function submitBarang(e) {
+            e.preventDefault();
+            
+            // Ambil ID Admin yang sedang login dari LocalStorage
+            const session = JSON.parse(localStorage.getItem('user_session'));
+            const userId = session ? session.id : null; // Ambil ID, jika null biarkan null
+
+            const payload = {
+                kode: document.getElementById('inputKode').value,
+                nama: document.getElementById('inputNama').value,
+                stok: document.getElementById('inputStok').value,
+                beli: document.getElementById('inputBeli').value,
+                jual: document.getElementById('inputJual').value,
+                id_user: userId // <--- PENTING: Kirim ID User ke Backend
+            };
+
+            const url = isEditing ? `/api/barang/${payload.kode}` : '/api/barang';
+            const method = isEditing ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    alert('Data berhasil disimpan!');
+                    closeModal();
+                    switchTab('barang'); // Refresh tabel
+                } else {
+                    alert('Gagal menyimpan data.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan server.');
+            }
+        }
+        
+        // --- MODAL & FORM FUNCTIONS ---
+        function openAddPengeluaran() {
+            document.getElementById('modalTitle').innerText = "Tambahkan (Pengeluaran)";
+            document.getElementById('modalContent').innerHTML = `
+                <form onsubmit="submitPengeluaran(event)" class="space-y-4">
+                    <label class="text-sm font-bold text-gray-600">Nama</label>
+                    <input type="text" id="namaNeeds" placeholder="Nama Item" class="w-full border p-2 rounded" required>
+                    <label class="text-sm font-bold text-gray-600">Jumlah</label>
+                    <input type="number" id="jumlahNeeds" placeholder="Total Amount" class="w-full border p-2 rounded" required>
+                    <label class="text-sm font-bold text-gray-600">Keterangan</label>
+                    <textarea id="ketNeeds" placeholder="Description" class="w-full border p-2 rounded"></textarea>
+                    <button type="submit" class="w-full bg-teal-700 text-white py-2 rounded font-bold">Simpan</button>
+                </form>
+            `;
+            document.getElementById('modalForm').classList.remove('hidden');
+        }
+
+        async function submitPengeluaran(e) {
+            e.preventDefault();
+            
+            // Ambil ID User dari Sesi Login
+            const session = JSON.parse(localStorage.getItem('user_session'));
+            const userId = session ? session.id : null;
+
+            const payload = {
+                nama: document.getElementById('namaNeeds').value,
+                jumlah: document.getElementById('jumlahNeeds').value,
+                keterangan: document.getElementById('ketNeeds').value,
+                id_user: userId // <--- TAMBAHAN: Kirim ID User
+            };
+
+            await fetch('/api/pengeluaran', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(payload) 
+            });
+            
+            closeModal();
+            // switchTab('pengeluaran');
+        }
+
+        async function deleteBarang(kode) {
+            if(confirm('Hapus barang ini?')) {
+                await fetch(`/api/barang/${kode}`, { method: 'DELETE' });
+                switchTab('barang');
+            }
+        }
+
+        function closeModal() { document.getElementById('modalForm').classList.add('hidden'); }
+        function logout() { localStorage.removeItem('user_session'); window.location.href = 'login.html'; }
+
+        // --- EXPORT FUNCTIONS ---
+        function exportExcel(tableId, filename) {
+            const table = document.getElementById(tableId);
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet 1"});
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+        }
+
+        function exportPDF(elementId, filename) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Jika elemen adalah tabel, gunakan autoTable
+            if (elementId.includes('table')) {
+                doc.autoTable({ html: `#${elementId}` });
+                doc.save(`${filename}.pdf`);
+            } else {
+                // Jika elemen adalah grafik/canvas, capture sebagai gambar (simplified text for now)
+                doc.text("Laporan Grafik Transaksi", 10, 10);
+                doc.save(`${filename}.pdf`);
+            }
+        }
+
+        // --- LOGOUT MODAL FUNCTIONS ---        
+        function showLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+
+        function doLogout() { localStorage.removeItem('user_session'); window.location.href = 'login.html'; }
+    
+        // Default Load: Pemasukan
+        switchTab('transaksi'); // Default load sesuai mockup yang aktif
     </script>
 </body>
 </html>
