@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Pengguna {
+  id_pengguna  Int           @id @default(autoincrement())
+  username     String        @unique
+  password     String
+  nama_lengkap String
+  role         String
+  foto         String?
+
+  // Relasi
+  transaksi    Transaksi[]
+  pengeluaran  Pengeluaran[]
+
+  @@map("pengguna")
+}
+
+model Barang {
+  kode_barang  String             @id
+  nama_barang  String
+  stok         Int
+  harga_beli   Int
+  harga_jual   Int
+
+  // Relasi
+  stok_masuk       StokMasuk[]
+  stok_keluar      StokKeluar[]
+  detail_transaksi DetailTransaksi[]
+
+  @@map("barang")
+}
+
+model StokMasuk {
+  id_stok_masuk Int      @id @default(autoincrement())
+  kode_barang   String
+  jumlah_masuk  Int
+  tanggal       DateTime @default(now())
+
+  // Relasi
+  barang        Barang   @relation(fields: [kode_barang], references: [kode_barang], onDelete: Cascade)
+
+  @@map("stok_masuk")
+}
+
+model StokKeluar {
+  id_stok_keluar Int      @id @default(autoincrement())
+  kode_barang    String
+  jumlah_keluar  Int
+  tanggal        DateTime @default(now())
+
+  // Relasi
+  barang         Barang   @relation(fields: [kode_barang], references: [kode_barang], onDelete: Cascade)
+
+  @@map("stok_keluar")
+}
+
+model Transaksi {
+  id_transaksi      String   @id
+  total_bayar       Int
+  id_pengguna       Int
+  tanggal_transaksi DateTime @default(now())
+
+  // Relasi
+  pengguna          Pengguna          @relation(fields: [id_pengguna], references: [id_pengguna])
+  detail_transaksi  DetailTransaksi[]
+
+  @@map("transaksi")
+}
+
+model DetailTransaksi {
+  id_detail    Int    @id @default(autoincrement())
+  id_transaksi String
+  kode_barang  String
+  jumlah_jual  Int
+  harga_satuan Int
+  sub_total    Int
+
+  // Relasi
+  transaksi    Transaksi @relation(fields: [id_transaksi], references: [id_transaksi], onDelete: Cascade)
+  barang       Barang    @relation(fields: [kode_barang], references: [kode_barang])
+
+  @@map("detail_transaksi")
+}
+
+model Pengeluaran {
+  id_pengeluaran   Int      @id @default(autoincrement())
+  nama_pengeluaran String
+  jumlah           Int
+  keterangan       String?
+  id_pengguna      Int
+  tanggal          DateTime @default(now())
+
+  // Relasi
+  pengguna         Pengguna @relation(fields: [id_pengguna], references: [id_pengguna])
+
+  @@map("pengeluaran")
+}
