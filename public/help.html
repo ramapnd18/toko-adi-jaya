@@ -28,9 +28,9 @@
                 window.location.href = 'login.html';
             }
             // 3. Cek Role
-            else if (session.role !== 'kasir') {
+            else if (session.role.toLowerCase() !== 'kasir') {
                 alert("Akses Ditolak! Halaman ini khusus Kasir.");
-                window.location.href = 'admin_dashboard.html';
+                window.location.href = 'index.html';
             }
         }
     </script>

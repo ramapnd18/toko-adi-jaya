@@ -45,8 +45,8 @@
         const session = JSON.parse(localStorage.getItem('user_session'));
         
         if (session) {
-            if (session.role === 'admin') {
-                window.location.href = 'admin_dashboard.html';
+            if (session.role && session.role.toLowerCase() === 'admin') {
+                window.location.href = 'index.html';
             } else {
                 window.location.href = 'transaksi.html';
             }
@@ -79,8 +79,8 @@
                     // Simpan ke LocalStorage
                     localStorage.setItem('user_session', JSON.stringify(dataSession));
                     
-                    // Cek Role
-                    if (result.data.role === 'admin') {
+                    // Cek Role (Case Insensitive)
+                    if (result.data.role && result.data.role.toLowerCase() === 'admin') {
                         window.location.href = 'index.html';
                     } else {
                         window.location.href = 'transaksi.html';

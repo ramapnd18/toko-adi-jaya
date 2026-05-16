@@ -1,13 +1,14 @@
 const multer = require('multer');
 const express = require('express');
-const mysql = require('mysql2');
+const { PrismaClient } = require('@prisma/client');
 const dotenv = require('dotenv');
-const path = require('path'); // Tambahan untuk path folder
+const path = require('path');
 
 dotenv.config();
 
 const app = express();
 const port = 3000;
+const prisma = new PrismaClient();
 
 // --- KONFIGURASI UPLOAD FOTO ---
 const storage = multer.diskStorage({
@@ -23,76 +24,62 @@ const upload = multer({ storage: storage });
 
 // 1. Agar folder 'public' bisa diakses browser (untuk baca HTML & CSS)
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json()); // Supaya bisa baca JSON dari frontend
 
-// 2. Koneksi Database
-const db = mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'db_toko_adi_jaya'
-});
+// 2. Koneksi Database Supabase via Prisma
+prisma.$connect()
+    .then(() => console.log('✅ Terhubung ke Database Supabase (PostgreSQL)'))
+    .catch((err) => console.error('❌ Gagal konek DB:', err.message));
 
-db.connect((err) => {
-    if (err) {
-        console.error('❌ Gagal konek DB:', err.message);
-    } else {
-        console.log('✅ Terhubung ke Database MySQL');
+app.get('/api/barang', async (req, res) => {
+    try {
+        const results = await prisma.barang.findMany({
+            orderBy: { stok: 'asc' }
+        });
+        res.json(results);
+    } catch (error) {
+        res.status(500).send(error);
     }
 });
 
-app.get('/api/barang', (req, res) => {
-    const sql = 'SELECT * FROM barang ORDER BY stok ASC';
-    db.query(sql, (err, results) => {
-        if (err) {
-            return res.status(500).send(err);
-        }
-        res.json(results); // Kirim data dalam format JSON ke browser
-    });
-});
-
-app.get('/api/laporan-stok', (req, res) => {
-    // Query ini menggabungkan data dari 3 tabel sekaligus
-    const sql = `
-        SELECT 
-            b.kode_barang,
-            b.nama_barang,
-            b.stok AS stok_saat_ini,
-            -- Hitung total masuk, jika null (tidak ada data) anggap 0
-            COALESCE((SELECT SUM(jumlah_masuk) FROM stok_masuk WHERE kode_barang = b.kode_barang), 0) AS total_masuk,
-            -- Hitung total keluar, jika null anggap 0
-            COALESCE((SELECT SUM(jumlah_keluar) FROM stok_keluar WHERE kode_barang = b.kode_barang), 0) AS total_keluar
-        FROM 
-            barang b
-        ORDER BY 
-            b.kode_barang ASC;
-    `;
-
-    db.query(sql, (err, results) => {
-        if (err) {
-            console.error("Error query laporan:", err);
-            return res.status(500).send(err);
-        }
-        // Kita kirim hasil perhitungan database ke frontend
-        res.json(results);
-    });
-});
-
-app.use(express.json()); // Supaya bisa baca JSON dari frontend
-
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    const sql = 'SELECT * FROM pengguna WHERE username = ? AND password = ?';
-    
-    // PERHATIKAN BAGIAN INI: (err, results) <- harus pakai 's' agar cocok dengan bawahnya
-    db.query(sql, [username, password], (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+app.get('/api/laporan-stok', async (req, res) => {
+    try {
+        const barangs = await prisma.barang.findMany({
+            include: {
+                stok_masuk: true,
+                stok_keluar: true
+            },
+            orderBy: { kode_barang: 'asc' }
+        });
         
-        // Di sini kita memanggil 'results' (harus sama tulisannya dengan di atas)
-        if (results.length > 0) {
-            const user = results[0];
+        const results = barangs.map(b => ({
+            kode_barang: b.kode_barang,
+            nama_barang: b.nama_barang,
+            stok_saat_ini: b.stok,
+            total_masuk: b.stok_masuk.reduce((sum, item) => sum + item.jumlah_masuk, 0),
+            total_keluar: b.stok_keluar.reduce((sum, item) => sum + item.jumlah_keluar, 0)
+        }));
+        
+        res.json(results);
+    } catch (error) {
+        console.error("Error query laporan:", error);
+        res.status(500).send(error);
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    console.log(`[LOGIN] Mencoba login dengan username: "${username}"`);
+    try {
+        // Cari user dengan username case-insensitive, lalu validasi password
+        const user = await prisma.pengguna.findFirst({
+            where: {
+                username: { equals: username, mode: 'insensitive' }
+            }
+        });
+        
+        if (user && user.password === password) {
+            console.log(`[LOGIN] ✅ Berhasil: ${username} (role: ${user.role})`);
             res.json({ 
                 success: true, 
                 message: 'Login Berhasil',
@@ -106,372 +93,391 @@ app.post('/api/login', (req, res) => {
                 }
             });
         } else {
+            console.log(`[LOGIN] ❌ Gagal: username "${username}" tidak ditemukan atau password salah`);
             res.status(401).json({ success: false, message: 'Username atau Password salah!' });
         }
-    });
+    } catch (error) {
+        console.error('[LOGIN] Error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // --- API CHECKOUT / TRANSAKSI ---
-app.post('/api/checkout', (req, res) => {
+app.post('/api/checkout', async (req, res) => {
     const { id_user, total_bayar, items } = req.body;
-    
-    // Buat ID Transaksi Unik (Misal: TRX-Timestamp)
     const id_transaksi = `TRX-${Date.now()}`;
 
-    // Mulai Transaksi Database (Agar aman, jika satu gagal, semua batal)
-    db.beginTransaction(err => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        // 1. Simpan Header Transaksi
-        const sqlTrans = 'INSERT INTO transaksi (id_transaksi, total_bayar, id_pengguna) VALUES (?, ?, ?)';
-        db.query(sqlTrans, [id_transaksi, total_bayar, id_user], (err, result) => {
-            if (err) {
-                return db.rollback(() => res.status(500).json({ error: err.message }));
-            }
-
-            // 2. Loop setiap barang di keranjang
-            const processItems = items.map(item => {
-                return new Promise((resolve, reject) => {
-                    // A. Kurangi Stok Barang
-                    const sqlUpdateStok = 'UPDATE barang SET stok = stok - ? WHERE kode_barang = ? AND stok >= ?';
-                    db.query(sqlUpdateStok, [item.qty, item.kode, item.qty], (err, result) => {
-                        if (err || result.affectedRows === 0) {
-                            // Jika affectedRows 0, berarti stok tidak cukup saat update
-                            return reject(`Stok tidak cukup untuk barang: ${item.nama}`);
-                        }
-
-                        // B. Simpan Detail Transaksi
-                        const sqlDetail = 'INSERT INTO detail_transaksi (id_transaksi, kode_barang, jumlah_jual, harga_satuan, sub_total) VALUES (?, ?, ?, ?, ?)';
-                        db.query(sqlDetail, [id_transaksi, item.kode, item.qty, item.harga, item.subtotal], (err, result) => {
-                            if (err) return reject(err.message);
-                            resolve();
-                        });
-                    });
-                });
+    try {
+        // Gunakan Interactive Transaction Prisma agar aman
+        await prisma.$transaction(async (tx) => {
+            // 1. Simpan Header Transaksi
+            await tx.transaksi.create({
+                data: {
+                    id_transaksi,
+                    total_bayar: parseInt(total_bayar),
+                    id_pengguna: parseInt(id_user)
+                }
             });
 
-            // Jalankan semua proses item
-            Promise.all(processItems)
-                .then(() => {
-                    // Jika semua sukses, COMMIT (Simpan permanen)
-                    db.commit(err => {
-                        if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                        res.json({ success: true, id_transaksi: id_transaksi, message: 'Transaksi Berhasil!' });
-                    });
-                })
-                .catch(error => {
-                    // Jika ada satu error (misal stok kurang), ROLLBACK (Batalkan semua)
-                    db.rollback(() => res.status(400).json({ success: false, message: error }));
+            // 2. Loop setiap barang di keranjang
+            for (const item of items) {
+                // A. Kurangi Stok Barang
+                const barang = await tx.barang.findUnique({ where: { kode_barang: item.kode } });
+                if (!barang || barang.stok < item.qty) {
+                    throw new Error(`Stok tidak cukup untuk barang: ${item.nama}`);
+                }
+                
+                await tx.barang.update({
+                    where: { kode_barang: item.kode },
+                    data: { stok: { decrement: parseInt(item.qty) } }
                 });
+
+                // B. Simpan Detail Transaksi
+                await tx.detailTransaksi.create({
+                    data: {
+                        id_transaksi,
+                        kode_barang: item.kode,
+                        jumlah_jual: parseInt(item.qty),
+                        harga_satuan: parseInt(item.harga),
+                        sub_total: parseInt(item.subtotal)
+                    }
+                });
+            }
         });
-    });
+        
+        res.json({ success: true, id_transaksi: id_transaksi, message: 'Transaksi Berhasil!' });
+    } catch (error) {
+        // Jika ada error (misal stok kurang), blok transaction otomatis me-rollback
+        res.status(400).json({ success: false, message: error.message });
+    }
 });
 
 // --- API ADMIN: KELOLA PENGGUNA ---
 
 // 1. Ambil Semua User
-app.get('/api/users', (req, res) => {
-    db.query('SELECT * FROM pengguna', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
+app.get('/api/users', async (req, res) => {
+    try {
+        const users = await prisma.pengguna.findMany();
+        res.json(users);
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // 2. Ambil SATU User (Untuk Edit/Detail)
-app.get('/api/users/:id', (req, res) => {
-    db.query('SELECT * FROM pengguna WHERE id_pengguna = ?', [req.params.id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results[0]);
-    });
+app.get('/api/users/:id', async (req, res) => {
+    try {
+        const user = await prisma.pengguna.findUnique({
+            where: { id_pengguna: parseInt(req.params.id) }
+        });
+        res.json(user);
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // 3. Tambah User Baru (Support Upload)
-// 'foto' adalah nama field di form HTML nanti
-app.post('/api/users', upload.single('foto'), (req, res) => {
+app.post('/api/users', upload.single('foto'), async (req, res) => {
     const { username, password, nama, role } = req.body;
-    
-    // Jika ada file diupload, pakai path-nya. Jika tidak, pakai gambar default.
     const fotoPath = req.file ? `/uploads/${req.file.filename}` : 'https://via.placeholder.com/150';
     
-    const sql = 'INSERT INTO pengguna (username, password, nama_lengkap, role, foto) VALUES (?, ?, ?, ?, ?)';
-    db.query(sql, [username, password, nama, role, fotoPath], (err, result) => {
-        if (err) return res.status(500).send(err);
+    try {
+        await prisma.pengguna.create({
+            data: { username, password, nama_lengkap: nama, role, foto: fotoPath }
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // 4. Update User (Support Upload)
-app.put('/api/users/:id', upload.single('foto'), (req, res) => {
+app.put('/api/users/:id', upload.single('foto'), async (req, res) => {
     const { username, password, nama, role } = req.body;
-    const id = req.params.id;
+    const id = parseInt(req.params.id);
     
-    // Cek dulu user lama untuk ambil foto lama jika user tidak upload foto baru
-    db.query('SELECT foto FROM pengguna WHERE id_pengguna = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        
-        // Jika user upload foto baru (req.file ada), pakai itu. 
-        // Jika tidak, pakai foto lama dari database.
-        const fotoFinal = req.file ? `/uploads/${req.file.filename}` : results[0].foto;
+    try {
+        const existingUser = await prisma.pengguna.findUnique({ where: { id_pengguna: id } });
+        const fotoFinal = req.file ? `/uploads/${req.file.filename}` : existingUser.foto;
 
-        const sql = 'UPDATE pengguna SET username=?, password=?, nama_lengkap=?, role=?, foto=? WHERE id_pengguna=?';
-        db.query(sql, [username, password, nama, role, fotoFinal, id], (err, result) => {
-            if (err) return res.status(500).send(err);
-            res.json({ success: true });
+        await prisma.pengguna.update({
+            where: { id_pengguna: id },
+            data: { username, password, nama_lengkap: nama, role, foto: fotoFinal }
         });
-    });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // 5. Hapus User
-app.delete('/api/users/:id', (req, res) => {
-    const sql = 'DELETE FROM pengguna WHERE id_pengguna = ?';
-    db.query(sql, [req.params.id], (err, result) => {
-        if (err) return res.status(500).send(err);
+app.delete('/api/users/:id', async (req, res) => {
+    try {
+        await prisma.pengguna.delete({
+            where: { id_pengguna: parseInt(req.params.id) }
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // --- API ADMIN: DASHBOARD STATS ---
-app.get('/api/stats', (req, res) => {
-    const sqlPendapatan = 'SELECT SUM(total_bayar) as total FROM transaksi';
-    const sqlPengeluaran = 'SELECT SUM(jumlah) as total FROM pengeluaran';
-    const sqlJmlBarang = 'SELECT COUNT(*) as total FROM barang';
-    const sqlJmlTransaksi = 'SELECT COUNT(*) as total FROM transaksi';
-
-    // Jalankan query secara paralel (sederhana)
-    db.query(sqlPendapatan, (err, res1) => {
-        db.query(sqlPengeluaran, (err, res2) => {
-            db.query(sqlJmlBarang, (err, res3) => {
-                db.query(sqlJmlTransaksi, (err, res4) => {
-                    res.json({
-                        pendapatan: res1[0].total || 0,
-                        pengeluaran: res2[0].total || 0,
-                        stok_jenis: res3[0].total || 0,
-                        transaksi: res4[0].total || 0
-                    });
-                });
-            });
+app.get('/api/stats', async (req, res) => {
+    try {
+        // Ambil data agregat (sum, count) secara bersamaan (paralel)
+        const [pendapatan, pengeluaran, jmlBarang, jmlTransaksi] = await Promise.all([
+            prisma.transaksi.aggregate({ _sum: { total_bayar: true } }),
+            prisma.pengeluaran.aggregate({ _sum: { jumlah: true } }),
+            prisma.barang.count(),
+            prisma.transaksi.count()
+        ]);
+        
+        res.json({
+            pendapatan: pendapatan._sum.total_bayar || 0,
+            pengeluaran: pengeluaran._sum.jumlah || 0,
+            stok_jenis: jmlBarang || 0,
+            transaksi: jmlTransaksi || 0
         });
-    });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // --- API ADMIN: HAPUS BARANG ---
-app.delete('/api/barang/:kode', (req, res) => {
-    const sql = 'DELETE FROM barang WHERE kode_barang = ?';
-    db.query(sql, [req.params.kode], (err, result) => {
-        if (err) return res.status(500).send(err);
+app.delete('/api/barang/:kode', async (req, res) => {
+    try {
+        await prisma.barang.delete({
+            where: { kode_barang: req.params.kode }
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // --- API ADMIN TAMBAHAN ---
 
 // 1. Ambil Riwayat Transaksi (Pemasukan)
-app.get('/api/transaksi-list', (req, res) => {
-    // Join dengan tabel pengguna untuk tahu siapa kasirnya
-    const sql = `
-        SELECT t.*, p.nama_lengkap as kasir 
-        FROM transaksi t 
-        LEFT JOIN pengguna p ON t.id_pengguna = p.id_pengguna 
-        ORDER BY t.tanggal_transaksi DESC
-    `;
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
+app.get('/api/transaksi-list', async (req, res) => {
+    try {
+        const transaksi = await prisma.transaksi.findMany({
+            include: { pengguna: { select: { nama_lengkap: true } } },
+            orderBy: { tanggal_transaksi: 'desc' }
+        });
+        
+        // Sesuaikan format balikan API agar sesuai dengan query JOIN di frontend lama
+        const mapped = transaksi.map(t => ({
+            ...t,
+            kasir: t.pengguna ? t.pengguna.nama_lengkap : null
+        }));
+        res.json(mapped);
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
-// 2. Ambil Data Pengeluaran (Update: Join Pengguna)
-app.get('/api/pengeluaran', (req, res) => {
-    const sql = `
-        SELECT p.*, u.nama_lengkap as pembuat 
-        FROM pengeluaran p 
-        LEFT JOIN pengguna u ON p.id_pengguna = u.id_pengguna 
-        ORDER BY p.tanggal DESC
-    `;
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
+// 2. Ambil Data Pengeluaran
+app.get('/api/pengeluaran', async (req, res) => {
+    try {
+        const pengeluaran = await prisma.pengeluaran.findMany({
+            include: { pengguna: { select: { nama_lengkap: true } } },
+            orderBy: { tanggal: 'desc' }
+        });
+        
+        const mapped = pengeluaran.map(p => ({
+            ...p,
+            pembuat: p.pengguna ? p.pengguna.nama_lengkap : null
+        }));
+        res.json(mapped);
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
-// 3. Tambah Pengeluaran Baru (Update: dengan ID User)
-app.post('/api/pengeluaran', (req, res) => {
-    // Ambil id_user dari body request
+// 3. Tambah Pengeluaran Baru
+app.post('/api/pengeluaran', async (req, res) => {
     const { nama, jumlah, keterangan, id_user } = req.body;
-    
-    const sql = 'INSERT INTO pengeluaran (nama_pengeluaran, jumlah, keterangan, id_pengguna) VALUES (?, ?, ?, ?)';
-    
-    db.query(sql, [nama, jumlah, keterangan, id_user], (err, result) => {
-        if (err) return res.status(500).send(err);
+    try {
+        await prisma.pengeluaran.create({
+            data: {
+                nama_pengeluaran: nama,
+                jumlah: parseInt(jumlah),
+                keterangan,
+                id_pengguna: parseInt(id_user)
+            }
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // 4. Barang Rekomendasi (Terlaris)
-app.get('/api/barang-terlaris', (req, res) => {
-    const sql = `
-        SELECT b.nama_barang, SUM(dt.jumlah_jual) as total_terjual 
-        FROM detail_transaksi dt
-        JOIN barang b ON dt.kode_barang = b.kode_barang
-        GROUP BY dt.kode_barang
-        ORDER BY total_terjual DESC
-        LIMIT 5
-    `;
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
+app.get('/api/barang-terlaris', async (req, res) => {
+    try {
+        const terlaris = await prisma.detailTransaksi.groupBy({
+            by: ['kode_barang'],
+            _sum: { jumlah_jual: true },
+            orderBy: { _sum: { jumlah_jual: 'desc' } },
+            take: 5
+        });
+        
+        // Karena `groupBy` tidak otomatis join, kita fetch manual nama_barang nya
+        const result = await Promise.all(terlaris.map(async (t) => {
+            const barang = await prisma.barang.findUnique({ where: { kode_barang: t.kode_barang } });
+            return {
+                nama_barang: barang?.nama_barang || 'Unknown',
+                total_terjual: t._sum.jumlah_jual
+            };
+        }));
+        res.json(result);
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // --- API ADMIN: KELOLA BARANG (Lanjutan) ---
 
 // 1. Ambil 1 Barang (Untuk Edit)
-app.get('/api/barang/:kode', (req, res) => {
-    const sql = 'SELECT * FROM barang WHERE kode_barang = ?';
-    db.query(sql, [req.params.kode], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.json(result[0]);
-    });
+app.get('/api/barang/:kode', async (req, res) => {
+    try {
+        const barang = await prisma.barang.findUnique({
+            where: { kode_barang: req.params.kode }
+        });
+        res.json(barang);
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
-// --- 2. Tambah Barang Baru (Update: Catat Siapa Adminnya) ---
-app.post('/api/barang', (req, res) => {
-    // Tambahkan id_user di sini
+// --- 2. Tambah Barang Baru ---
+app.post('/api/barang', async (req, res) => {
     const { kode, nama, stok, beli, jual, id_user } = req.body;
-    
     const totalModal = parseInt(stok) * parseInt(beli);
 
-    db.beginTransaction(err => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await prisma.$transaction(async (tx) => {
+            await tx.barang.create({
+                data: {
+                    kode_barang: kode,
+                    nama_barang: nama,
+                    stok: parseInt(stok),
+                    harga_beli: parseInt(beli),
+                    harga_jual: parseInt(jual)
+                }
+            });
 
-        // A. Simpan Barang
-        const sqlBarang = 'INSERT INTO barang (kode_barang, nama_barang, stok, harga_beli, harga_jual) VALUES (?, ?, ?, ?, ?)';
-        db.query(sqlBarang, [kode, nama, stok, beli, jual], (err, result) => {
-            if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-
-            // B. Catat Pengeluaran (Dengan ID Pengguna)
             if (totalModal > 0) {
-                const sqlPengeluaran = 'INSERT INTO pengeluaran (nama_pengeluaran, jumlah, keterangan, id_pengguna) VALUES (?, ?, ?, ?)';
-                const ket = `Modal awal barang baru: ${nama} (${stok} unit)`;
-                
-                // Masukkan id_user ke query
-                db.query(sqlPengeluaran, ["Belanja Stok Barang", totalModal, ket, id_user], (err, result) => {
-                    if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                    
-                    db.commit(err => {
-                        if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                        res.json({ success: true, message: 'Barang & Pengeluaran tercatat' });
-                    });
-                });
-            } else {
-                db.commit(err => {
-                    if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                    res.json({ success: true });
+                await tx.pengeluaran.create({
+                    data: {
+                        nama_pengeluaran: "Belanja Stok Barang",
+                        jumlah: totalModal,
+                        keterangan: `Modal awal barang baru: ${nama} (${stok} unit)`,
+                        id_pengguna: parseInt(id_user)
+                    }
                 });
             }
         });
-    });
+        res.json({ success: true, message: 'Barang & Pengeluaran tercatat' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// --- 3. Update Barang / Restock (Update: Catat Siapa Adminnya) ---
-app.put('/api/barang/:kode', (req, res) => {
-    // Tambahkan id_user di sini
+// --- 3. Update Barang / Restock ---
+app.put('/api/barang/:kode', async (req, res) => {
     const { nama, stok, beli, jual, id_user } = req.body;
     const kodeLama = req.params.kode;
     const stokBaru = parseInt(stok);
     const hargaBeliBaru = parseInt(beli);
 
-    db.beginTransaction(err => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await prisma.$transaction(async (tx) => {
+            const barangLama = await tx.barang.findUnique({ where: { kode_barang: kodeLama } });
+            if (!barangLama) throw new Error('Barang tidak ditemukan');
 
-        db.query('SELECT stok FROM barang WHERE kode_barang = ?', [kodeLama], (err, results) => {
-            if (err || results.length === 0) return db.rollback(() => res.status(500).json({ error: 'Barang tidak ditemukan' }));
+            const selisihStok = stokBaru - barangLama.stok;
 
-            const stokLama = results[0].stok;
-            const selisihStok = stokBaru - stokLama;
-
-            const sqlUpdate = 'UPDATE barang SET nama_barang=?, stok=?, harga_beli=?, harga_jual=? WHERE kode_barang=?';
-            db.query(sqlUpdate, [nama, stok, beli, jual, kodeLama], (err, result) => {
-                if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-
-                // C. Jika Restock, Catat Pengeluaran dengan ID User
-                if (selisihStok > 0) {
-                    const biayaRestock = selisihStok * hargaBeliBaru;
-                    const sqlPengeluaran = 'INSERT INTO pengeluaran (nama_pengeluaran, jumlah, keterangan, id_pengguna) VALUES (?, ?, ?, ?)';
-                    const ket = `Restock barang: ${nama} (+${selisihStok} unit)`;
-
-                    // Masukkan id_user ke query
-                    db.query(sqlPengeluaran, ["Belanja Stok Tambahan", biayaRestock, ket, id_user], (err, result) => {
-                        if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                        
-                        db.commit(err => {
-                            if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                            res.json({ success: true });
-                        });
-                    });
-                } else {
-                    db.commit(err => {
-                        if (err) return db.rollback(() => res.status(500).json({ error: err.message }));
-                        res.json({ success: true });
-                    });
+            await tx.barang.update({
+                where: { kode_barang: kodeLama },
+                data: {
+                    nama_barang: nama,
+                    stok: stokBaru,
+                    harga_beli: hargaBeliBaru,
+                    harga_jual: parseInt(jual)
                 }
             });
+
+            // Catat pengeluaran belanja jika restock
+            if (selisihStok > 0) {
+                const biayaRestock = selisihStok * hargaBeliBaru;
+                await tx.pengeluaran.create({
+                    data: {
+                        nama_pengeluaran: "Belanja Stok Tambahan",
+                        jumlah: biayaRestock,
+                        keterangan: `Restock barang: ${nama} (+${selisihStok} unit)`,
+                        id_pengguna: parseInt(id_user)
+                    }
+                });
+            }
         });
-    });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // --- API UBAH PASSWORD ---
-app.post('/api/change-password', (req, res) => {
+app.post('/api/change-password', async (req, res) => {
     const { id_pengguna, new_password } = req.body;
 
-    // Validasi sederhana
     if (!new_password || new_password.length < 6) {
         return res.status(400).json({ success: false, message: 'Password minimal 6 karakter!' });
     }
 
-    const sql = 'UPDATE pengguna SET password = ? WHERE id_pengguna = ?';
-    db.query(sql, [new_password, id_pengguna], (err, result) => {
-        if (err) return res.status(500).json({ success: false, message: err.message });
-        
-        if (result.affectedRows > 0) {
-            res.json({ success: true, message: 'Password berhasil diubah!' });
-        } else {
-            res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
-        }
-    });
+    try {
+        await prisma.pengguna.update({
+            where: { id_pengguna: parseInt(id_pengguna) },
+            data: { password: new_password }
+        });
+        res.json({ success: true, message: 'Password berhasil diubah!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // --- API ADMIN: DATA CHART TRANSAKSI (PER BULAN) ---
-app.get('/api/chart-transaksi', (req, res) => {
-    // Query untuk mengambil Total Pendapatan per Bulan (Format: YYYY-MM)
-    const sql = `
-        SELECT 
-            DATE_FORMAT(tanggal_transaksi, '%Y-%m') as bulan, 
-            SUM(total_bayar) as total 
-        FROM transaksi 
-        GROUP BY bulan 
-        ORDER BY bulan ASC 
-        LIMIT 6
-    `;
-    
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
+app.get('/api/chart-transaksi', async (req, res) => {
+    try {
+        // Query Postgres melalui prisma raw: 
+        // DATE_FORMAT (MySQL) diganti ke TO_CHAR (PostgreSQL)
+        const results = await prisma.$queryRaw`
+            SELECT 
+                TO_CHAR(tanggal_transaksi, 'YYYY-MM') as bulan, 
+                CAST(SUM(total_bayar) AS BIGINT) as total 
+            FROM transaksi 
+            GROUP BY bulan 
+            ORDER BY bulan ASC 
+            LIMIT 6
+        `;
         
-        // Format data agar mudah dibaca Chart.js
-        // Kita ubah "2023-11" menjadi nama bulan "November"
         const labels = [];
         const data = [];
         
         results.forEach(row => {
-            const date = new Date(row.bulan + "-01"); // Tambah tanggal 1 agar valid
+            const date = new Date(row.bulan + "-01"); 
             const monthName = date.toLocaleString('id-ID', { month: 'long' });
             
             labels.push(monthName);
-            data.push(row.total);
+            // prisma query raw me-return BigInt untuk SUM di postgres, wajib dicast Number karena BigInt tidak bisa di JSON.stringify
+            data.push(Number(row.total)); 
         });
 
         res.json({ labels, data });
-    });
+    } catch (error) {
+        res.status(500).send(error);
+    }
 });
 
 // 3. Jalankan Server
