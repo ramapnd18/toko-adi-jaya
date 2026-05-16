@@ -2,70 +2,131 @@
 
 Project Manajemen Inventori dan Kasir untuk Toko Adi Jaya. Proyek ini dibangun menggunakan **Node.js, Express, TailwindCSS,** dan **Prisma ORM** yang dihubungkan ke **Supabase (PostgreSQL)**.
 
-## Persyaratan Sistem
-Pastikan Anda sudah menginstal perangkat lunak berikut di komputer Anda:
-- **Node.js** (versi 16 atau lebih baru)
-- **Git** (opsional, untuk version control)
+---
 
-## Panduan Instalasi (Langkah demi Langkah)
+## Panduan Instalasi Lokal (Langkah demi Langkah)
 
-### 1. Kloning Repositori (Jika menggunakan Git)
-Atau Anda bisa mengunduh dan mengekstrak folder project ini ke komputer Anda. Buka terminal/Command Prompt, lalu arahkan ke dalam folder proyek:
+### 1. Kloning Repositori
+Atau unduh dan ekstrak folder project ini, lalu buka terminal di dalam folder tersebut:
 ```bash
 cd toko-adi-jaya
 ```
 
 ### 2. Install Dependensi (Library)
-Instal semua pustaka Node.js yang dibutuhkan oleh aplikasi ini, termasuk Express, Prisma, Tailwind, dan lain-lain:
 ```bash
 npm install
 ```
 
 ### 3. Konfigurasi Variabel Lingkungan (.env)
-Aplikasi ini memerlukan kredensial database untuk berjalan. 
-1. Buat file baru bernama `.env` di *root* direktori (satu tempat dengan `package.json`).
-2. Isi file `.env` tersebut dengan kredensial Supabase Anda. Gunakan format berikut:
-
+Buat file `.env` di *root* direktori, lalu isi dengan kredensial Supabase Anda:
 ```env
-# Koneksi Prisma ke Supabase
-# DATABASE_URL biasanya menggunakan port 6543 (Transaction mode / pgbouncer)
+# Koneksi via pgbouncer (Transaction mode) — port 6543
 DATABASE_URL="postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
 
-# DIRECT_URL menggunakan port 5432 (Session mode) digunakan untuk sinkronisasi skema
+# Koneksi langsung (Session mode) — port 5432, untuk migrate
 DIRECT_URL="postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-[REGION].pooler.supabase.com:5432/postgres"
 ```
-*(Catatan: Anda bisa mendapatkan URL ini dari menu **Project Settings -> Database** di dashboard Supabase).*
+*(URL bisa didapat dari **Project Settings → Database** di dashboard Supabase).*
 
-### 4. Setup dan Sinkronisasi Database Prisma
-Setelah URL di `.env` sudah sesuai, sinkronkan skema Prisma dengan database Supabase Anda:
+### 4. Setup Database Prisma
 ```bash
 npx prisma generate
 npx prisma db push
 ```
-- `prisma generate` akan membuat ulang client Prisma (`@prisma/client`) yang akan dipakai oleh Express.
-- `prisma db push` akan membuat tabel-tabel di Supabase secara otomatis sesuai dengan `prisma/schema.prisma`.
 
-### 5. Compile CSS Tailwind
-Aplikasi ini menggunakan TailwindCSS. Jika Anda mengubah desain di file `src/input.css` atau class di HTML, Anda harus men-compile CSS tersebut.
-Jalankan perintah ini di **terminal terpisah**:
+### 5. Compile CSS Tailwind (terminal terpisah)
 ```bash
 npm run build:css
 ```
-*(Perintah ini akan berjalan terus (`--watch`) dan memperbarui file `public/style.css` secara real-time).*
 
 ### 6. Jalankan Server
-Kembali ke terminal utama, jalankan backend server Express menggunakan perintah:
 ```bash
 npm start
 ```
-Server akan berjalan menggunakan `nodemon` (otomatis restart saat ada perubahan kode) dan Anda akan melihat tulisan: `🚀 Server berjalan di http://localhost:3000`
-
-### 7. Akses Aplikasi
-Buka browser Anda dan kunjungi URL berikut untuk mengakses aplikasi:
-**http://localhost:3000**
+Server berjalan di **http://localhost:3000**
 
 ---
 
-## Catatan Penting
-- Karena ini menggunakan Supabase PostgreSQL, pastikan server.js telah disesuaikan dari `mysql2` menggunakan `@prisma/client`.
-- Foto user/barang yang diupload akan disimpan sementara di direktori `public/uploads/` secara lokal. Direktori ini di-ignore di Git agar ukuran repositori tidak membengkak.
+## 🚀 Panduan Deploy ke Vercel
+
+### Prasyarat
+- Akun [Vercel](https://vercel.com) (bisa daftar gratis)
+- Akun [GitHub](https://github.com) (untuk menghubungkan repositori)
+- Database Supabase sudah aktif dan skema sudah di-push (`npx prisma db push`)
+
+---
+
+### Langkah 1 — Push Kode ke GitHub
+
+Buat repositori baru di GitHub (kosong, tanpa README), lalu jalankan di terminal:
+```bash
+git init
+git add .
+git commit -m "first commit"
+git remote add origin https://github.com/[USERNAME]/[NAMA-REPO].git
+git push -u origin main
+```
+> **Penting:** File `.env` sudah ada di `.gitignore`, jadi **kredensial database Anda aman** dan tidak akan ikut ter-upload ke GitHub.
+
+---
+
+### Langkah 2 — Import Project di Vercel
+
+1. Buka [vercel.com](https://vercel.com) → klik **"Add New Project"**
+2. Pilih **"Import Git Repository"** → pilih repositori `toko-adi-jaya` yang baru saja Anda push
+3. Pada bagian **"Framework Preset"**, pilih **Other**
+4. Biarkan semua pengaturan build default, lalu **jangan klik Deploy dulu** — lanjut ke langkah berikutnya
+
+---
+
+### Langkah 3 — Tambahkan Environment Variables di Vercel
+
+Sebelum deploy, Anda **wajib** menambahkan variabel lingkungan agar server bisa terhubung ke database Supabase.
+
+Di halaman konfigurasi project Vercel, scroll ke bawah ke bagian **"Environment Variables"**:
+
+| Name | Value |
+|------|-------|
+| `DATABASE_URL` | `postgresql://postgres.[REF]:[PASS]@...:6543/postgres?pgbouncer=true` |
+| `DIRECT_URL` | `postgresql://postgres.[REF]:[PASS]@...:5432/postgres` |
+
+*(Salin nilai persis dari file `.env` lokal Anda)*
+
+Klik **Add** untuk setiap variabel, lalu klik **Deploy**.
+
+---
+
+### Langkah 4 — Tunggu Build & Akses URL
+
+Vercel akan otomatis membangun dan men-deploy aplikasi Anda. Setelah selesai (~1-2 menit), Anda akan mendapatkan URL publik seperti:
+
+```
+https://toko-adi-jaya.vercel.app
+```
+
+---
+
+### Langkah 5 — Jalankan Seeder (Jika Database Kosong)
+
+Jika ini pertama kali deploy dan tabel `pengguna` masih kosong, jalankan seeder dari komputer lokal Anda:
+```bash
+node prisma/seed.js
+```
+Ini akan menambahkan akun admin default:
+- **Username:** `admin`
+- **Password:** `password123`
+
+---
+
+### ⚠️ Catatan Penting untuk Vercel
+
+> **Upload Foto Tidak Tersimpan Permanen di Vercel!**
+> Vercel berjalan secara *serverless* dan tidak memiliki filesystem yang persisten. Setiap kali server di-restart, file yang diupload ke `public/uploads/` akan **hilang**. Untuk solusi permanen, gunakan layanan penyimpanan cloud seperti **Supabase Storage** atau **Cloudinary**.
+
+> **Auto-Deploy:** Setiap kali Anda `git push` ke branch `main`, Vercel akan otomatis men-deploy versi terbaru aplikasi Anda.
+
+---
+
+## Catatan
+- Foto yang diupload disimpan sementara di `public/uploads/` (lokal) dan di-ignore oleh Git.
+- Untuk production, disarankan menggunakan penyimpanan cloud untuk file/foto.
