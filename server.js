@@ -13,10 +13,15 @@ const port = 3000;
 const prisma = new PrismaClient();
 
 // --- SUPABASE STORAGE CLIENT (Opsional) ---
-// Hanya aktif jika SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY sudah diisi di .env
+// Hanya aktif jika SUPABASE_URL format valid: https://[ref].supabase.co (BUKAN sb_publishable_...)
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const useSupabaseStorage = SUPABASE_URL && !SUPABASE_URL.includes('[YOUR') && SUPABASE_KEY && !SUPABASE_KEY.includes('[YOUR');
+
+// Validasi ketat: URL harus berformat https://[project-ref].supabase.co
+// dan KEY harus berformat JWT (eyJ...) — bukan sb_secret_ atau placeholder
+const isValidSupabaseUrl = SUPABASE_URL && /^https:\/\/[a-z0-9]+\.supabase\.co$/.test(SUPABASE_URL);
+const isValidSupabaseKey = SUPABASE_KEY && SUPABASE_KEY.startsWith('eyJ');
+const useSupabaseStorage = isValidSupabaseUrl && isValidSupabaseKey;
 
 let supabase = null;
 if (useSupabaseStorage) {
