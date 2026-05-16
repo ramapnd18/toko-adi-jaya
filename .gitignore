@@ -3,3 +3,6 @@ node_modules/
 public/uploads/
 *.log
 .DS_Store
+backup/
+check-users.js
+fix.js
