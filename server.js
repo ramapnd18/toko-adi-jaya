@@ -528,7 +528,15 @@ app.get('/api/chart-transaksi', async (req, res) => {
     }
 });
 
-// 3. Jalankan Server
-app.listen(port, () => {
-    console.log(`🚀 Server berjalan di http://localhost:${port}`);
-});
+// Jalankan server lokal (hanya saat bukan di Vercel/serverless)
+// Di Vercel, 'module.exports = app' yang dipakai, bukan app.listen()
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`🚀 Server berjalan di http://localhost:${port}`);
+    });
+} else {
+    console.log('🚀 Berjalan di mode production (Vercel Serverless)');
+}
+
+// Wajib: export app agar Vercel serverless bisa membacanya
+module.exports = app;
