@@ -120,13 +120,54 @@ Ini akan menambahkan akun admin default:
 
 ### ⚠️ Catatan Penting untuk Vercel
 
-> **Upload Foto Tidak Tersimpan Permanen di Vercel!**
-> Vercel berjalan secara *serverless* dan tidak memiliki filesystem yang persisten. Setiap kali server di-restart, file yang diupload ke `public/uploads/` akan **hilang**. Untuk solusi permanen, gunakan layanan penyimpanan cloud seperti **Supabase Storage** atau **Cloudinary**.
-
 > **Auto-Deploy:** Setiap kali Anda `git push` ke branch `main`, Vercel akan otomatis men-deploy versi terbaru aplikasi Anda.
 
 ---
 
+## 🗂️ Setup Supabase Storage (Untuk Upload Foto)
+
+Aplikasi ini menggunakan **Supabase Storage** agar foto pengguna tersimpan secara permanen di cloud (tidak hilang saat Vercel restart).
+
+### Langkah A — Buat Bucket di Supabase
+
+1. Buka [supabase.com](https://supabase.com) → masuk ke project Anda
+2. Di sidebar kiri, klik **Storage**
+3. Klik **"New Bucket"**
+4. Isi nama bucket: `foto-pengguna`
+5. Centang **"Public bucket"** agar foto bisa diakses publik via URL
+6. Klik **Save**
+
+### Langkah B — Dapatkan Kredensial API Supabase
+
+1. Buka **Project Settings → API**
+2. Salin nilai berikut:
+   - **Project URL** → untuk `SUPABASE_URL`
+   - **service_role** (Secret) → untuk `SUPABASE_SERVICE_ROLE_KEY`
+
+> ⚠️ **Jangan bagikan `SUPABASE_SERVICE_ROLE_KEY` ke publik!** Key ini memberikan akses penuh ke project Supabase Anda.
+
+### Langkah C — Isi `.env` Lokal
+
+Tambahkan dua baris ini ke file `.env` Anda:
+```env
+SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="[YOUR-SERVICE-ROLE-KEY]"
+```
+
+### Langkah D — Tambahkan ke Environment Variables Vercel
+
+Di dashboard Vercel → **Settings → Environment Variables**, tambahkan semua variabel berikut:
+
+| Name | Keterangan |
+|------|------------|
+| `DATABASE_URL` | URL pgbouncer Supabase (port 6543) |
+| `DIRECT_URL` | URL direct Supabase (port 5432) |
+| `SUPABASE_URL` | Project URL Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key (Secret) dari Supabase |
+
+---
+
 ## Catatan
-- Foto yang diupload disimpan sementara di `public/uploads/` (lokal) dan di-ignore oleh Git.
-- Untuk production, disarankan menggunakan penyimpanan cloud untuk file/foto.
+- Foto pengguna yang diupload kini tersimpan permanen di **Supabase Storage** (bucket `foto-pengguna`).
+- Folder `public/uploads/` tidak lagi digunakan untuk production.
+

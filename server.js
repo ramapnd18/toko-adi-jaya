@@ -1,8 +1,10 @@
 const multer = require('multer');
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 
 dotenv.config();
 
@@ -10,17 +12,51 @@ const app = express();
 const port = 3000;
 const prisma = new PrismaClient();
 
-// --- KONFIGURASI UPLOAD FOTO ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'public/uploads/'); // Folder penyimpanan
-    },
-    filename: (req, file, cb) => {
-        // Nama file unik: timestamp + ekstensi asli (misal: 17823712.jpg)
-        cb(null, Date.now() + path.extname(file.originalname));
+// --- SUPABASE STORAGE CLIENT (Opsional) ---
+// Hanya aktif jika SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY sudah diisi di .env
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const useSupabaseStorage = SUPABASE_URL && !SUPABASE_URL.includes('[YOUR') && SUPABASE_KEY && !SUPABASE_KEY.includes('[YOUR');
+
+let supabase = null;
+if (useSupabaseStorage) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('✅ Supabase Storage aktif — foto akan diupload ke cloud');
+} else {
+    console.log('⚠️  Supabase Storage tidak dikonfigurasi — foto disimpan ke lokal (public/uploads/)');
+}
+
+const BUCKET_NAME = 'foto-pengguna';
+
+// Helper: Upload foto — ke Supabase Storage jika aktif, ke lokal jika tidak
+async function handleFotoUpload(file) {
+    if (!file) return null;
+
+    if (useSupabaseStorage) {
+        // Upload ke Supabase Storage
+        const fileName = `${Date.now()}${path.extname(file.originalname)}`;
+        const { error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .upload(fileName, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false
+            });
+        if (error) throw new Error(`Upload Supabase gagal: ${error.message}`);
+        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
+        return data.publicUrl;
+    } else {
+        // Fallback: simpan ke lokal (public/uploads/)
+        const uploadDir = path.join(__dirname, 'public/uploads');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        const fileName = `${Date.now()}${path.extname(file.originalname)}`;
+        fs.writeFileSync(path.join(uploadDir, fileName), file.buffer);
+        return `/uploads/${fileName}`;
     }
-});
-const upload = multer({ storage: storage });
+}
+
+// --- KONFIGURASI MULTER (Memory Storage) ---
+const upload = multer({ storage: multer.memoryStorage() });
+
 
 // 1. Agar folder 'public' bisa diakses browser (untuk baca HTML & CSS)
 app.use(express.static(path.join(__dirname, 'public')));
@@ -176,29 +212,40 @@ app.get('/api/users/:id', async (req, res) => {
     }
 });
 
-// 3. Tambah User Baru (Support Upload)
+// 3. Tambah User Baru (Support Upload ke Supabase Storage)
 app.post('/api/users', upload.single('foto'), async (req, res) => {
     const { username, password, nama, role } = req.body;
-    const fotoPath = req.file ? `/uploads/${req.file.filename}` : 'https://via.placeholder.com/150';
     
     try {
+        // Jika ada file diupload, upload ke Supabase Storage, jika tidak pakai placeholder
+        let fotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=random`;
+        if (req.file) {
+            fotoUrl = await handleFotoUpload(req.file);
+        }
+
         await prisma.pengguna.create({
-            data: { username, password, nama_lengkap: nama, role, foto: fotoPath }
+            data: { username, password, nama_lengkap: nama, role, foto: fotoUrl }
         });
         res.json({ success: true });
     } catch (error) {
-        res.status(500).send(error);
+        console.error('Error tambah user:', error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// 4. Update User (Support Upload)
+// 4. Update User (Support Upload ke Supabase Storage)
 app.put('/api/users/:id', upload.single('foto'), async (req, res) => {
     const { username, password, nama, role } = req.body;
     const id = parseInt(req.params.id);
     
     try {
         const existingUser = await prisma.pengguna.findUnique({ where: { id_pengguna: id } });
-        const fotoFinal = req.file ? `/uploads/${req.file.filename}` : existingUser.foto;
+        
+        // Jika ada file baru, upload ke Supabase Storage. Jika tidak, pakai foto lama.
+        let fotoFinal = existingUser.foto;
+        if (req.file) {
+            fotoFinal = await handleFotoUpload(req.file);
+        }
 
         await prisma.pengguna.update({
             where: { id_pengguna: id },
@@ -206,7 +253,8 @@ app.put('/api/users/:id', upload.single('foto'), async (req, res) => {
         });
         res.json({ success: true });
     } catch (error) {
-        res.status(500).send(error);
+        console.error('Error update user:', error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 
